@@ -48,6 +48,7 @@ export default function Chat() {
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [caloriesOpen, setCaloriesOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -306,6 +307,16 @@ export default function Chat() {
           <h1 className="flex-1 truncate text-[20px] font-medium tracking-[-0.01em]">
             トレーナー
           </h1>
+          <IconButton
+            label="今日のカロリー"
+            onClick={() => {
+              setMenuOpen(false);
+              setCaloriesOpen((v) => !v);
+            }}
+            className={cn(caloriesOpen && "text-primary")}
+          >
+            <UtensilsIcon className="h-6 w-6" />
+          </IconButton>
           <IconButton label="新しい会話" onClick={newChat}>
             <SquarePen className="h-6 w-6" strokeWidth={1.8} />
           </IconButton>
@@ -322,6 +333,21 @@ export default function Chat() {
             <MoreHorizontal className="h-6 w-6" strokeWidth={1.8} />
           </IconButton>
         </header>
+
+        {/* カロリーパネル(ヘッダー下に少しだけ展開) */}
+        {caloriesOpen && (
+          <>
+            <button
+              aria-label="カロリーパネルを閉じる"
+              className="absolute inset-0 z-40"
+              onClick={() => setCaloriesOpen(false)}
+            />
+            <CaloriesPanel
+              todayCalories={data.todayCalories}
+              targetCalories={data.profile.targetCalories}
+            />
+          </>
+        )}
 
         {/* ...メニュー(すりガラスのポップオーバー) */}
         {menuOpen && current && (
@@ -460,6 +486,103 @@ export default function Chat() {
           </form>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** フォーク&スプーンの線画アイコン(参考イラストをイメージ) */
+function UtensilsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {/* フォーク */}
+      <path d="M4.5 3v3.5a2.5 2.5 0 0 0 5 0V3" />
+      <path d="M7 3v4" />
+      <path d="M7 9v12" />
+      {/* スプーン */}
+      <ellipse cx="16.5" cy="6.4" rx="3" ry="3.9" />
+      <path d="M16.5 10.3V21" />
+    </svg>
+  );
+}
+
+/** ヘッダー下に展開する今日のカロリーパネル */
+function CaloriesPanel({
+  todayCalories,
+  targetCalories,
+}: {
+  todayCalories: number;
+  targetCalories: number | null;
+}) {
+  const hasTarget = targetCalories != null && targetCalories > 0;
+  const remaining = hasTarget ? targetCalories - todayCalories : null;
+  const over = remaining != null && remaining < 0;
+  const ratio = hasTarget
+    ? Math.min(100, (todayCalories / targetCalories) * 100)
+    : null;
+
+  return (
+    <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top,0px)+3.75rem)] z-50 origin-top animate-drop-in rounded-[16px] border border-black/5 bg-card/90 px-5 py-4 shadow-[0_12px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl">
+      <p className="text-[13px] font-semibold text-muted-foreground">
+        今日の食事
+      </p>
+      <div className="mt-2 flex items-center">
+        <div className="flex-1">
+          <p className="text-[24px] font-semibold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+            {todayCalories}
+            <span className="ml-1 text-[13px] font-normal text-muted-foreground">
+              kcal
+            </span>
+          </p>
+          <p className="mt-1.5 text-[12px] text-muted-foreground">摂取</p>
+        </div>
+        <div className="h-9 w-px bg-border" />
+        <div className="flex-1 pl-5">
+          {hasTarget ? (
+            <>
+              <p
+                className={cn(
+                  "text-[24px] font-semibold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]",
+                  over && "text-destructive"
+                )}
+              >
+                {Math.abs(remaining!)}
+                <span className="ml-1 text-[13px] font-normal text-muted-foreground">
+                  kcal
+                </span>
+              </p>
+              <p className="mt-1.5 text-[12px] text-muted-foreground">
+                {over ? "目標オーバー" : "あと摂取できる"}
+              </p>
+            </>
+          ) : (
+            <p className="text-[13px] leading-snug text-muted-foreground">
+              設定で目標カロリーを
+              <br />
+              入力すると残りが出ます
+            </p>
+          )}
+        </div>
+      </div>
+      {ratio != null && (
+        <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all",
+              over ? "bg-destructive" : "bg-primary"
+            )}
+            style={{ width: `${ratio}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }

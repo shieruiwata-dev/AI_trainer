@@ -57,10 +57,15 @@ export default {
           from: { opacity: "0", transform: "scale(0.92)" },
           to: { opacity: "1", transform: "scale(1)" },
         },
+        "drop-in": {
+          from: { opacity: "0", transform: "translateY(-10px) scale(0.98)" },
+          to: { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.25s ease-out",
         "pop-in": "pop-in 0.18s cubic-bezier(0.32, 0.72, 0, 1)",
+        "drop-in": "drop-in 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
       },
       transitionTimingFunction: {
         ios: "cubic-bezier(0.32, 0.72, 0, 1)",
