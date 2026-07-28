@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import BackLink from "@/components/BackLink";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -59,7 +60,8 @@ export default function Settings() {
   const mode = getTrainerMode();
 
   return (
-    <div className="animate-fade-in space-y-5 p-4 pt-6">
+    <div className="animate-fade-in space-y-5 p-4 pt-3">
+      <BackLink />
       <header className="px-1">
         <h1 className="text-[28px] leading-[1.14]">設定</h1>
         <p className="mt-1 text-[15px] text-muted-foreground">

@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import BackLink from "@/components/BackLink";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,8 @@ export default function Log() {
   const data = useAppData();
 
   return (
-    <div className="animate-fade-in space-y-5 p-4 pt-6">
+    <div className="animate-fade-in space-y-5 p-4 pt-3">
+      <BackLink />
       <header className="px-1">
         <h1 className="text-[28px] leading-[1.14]">記録</h1>
         <p className="mt-1 text-[15px] text-muted-foreground">

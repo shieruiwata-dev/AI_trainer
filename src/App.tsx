@@ -1,6 +1,5 @@
 import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "sonner";
-import BottomNav from "@/components/BottomNav";
 import Chat from "@/pages/Chat";
 import Log from "@/pages/Log";
 import Settings from "@/pages/Settings";
@@ -24,7 +23,6 @@ export default function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
-          <BottomNav />
         </div>
       </div>
     </Router>
