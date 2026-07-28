@@ -8,6 +8,10 @@ export default defineConfig({
     host: "::",
     port: 8080,
   },
+  build: {
+    // 単一HTML書き出し時(Artifactプレビュー用)はフォント等の全アセットを埋め込む
+    assetsInlineLimit: process.env.VITE_SINGLE_FILE ? 100_000_000 : undefined,
+  },
   plugins: [react()],
   resolve: {
     alias: {

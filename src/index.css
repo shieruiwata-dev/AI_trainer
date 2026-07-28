@@ -43,11 +43,14 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
-      "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
-      "BIZ UDPGothic", Meiryo, system-ui, sans-serif;
+    /* Apple端末: SF Pro + ヒラギノ / それ以外: 同梱の Inter + Noto Sans JP */
+    font-family: -apple-system, BlinkMacSystemFont, "Inter Variable",
+      "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP Variable",
+      sans-serif;
     font-size: 17px;
     line-height: 1.47;
+    letter-spacing: -0.01em;
+    font-feature-settings: "cv05", "cv08";
   }
   /* 見出しはSF Pro Display相当: weight 600 + タイトな字間 */
   h1, h2, h3 {
