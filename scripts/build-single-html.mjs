@@ -1,0 +1,34 @@
+// ビルド成果物(dist/)の JS と CSS を1枚の HTML に埋め込むスクリプト。
+// Artifact プレビューなど、単一ファイルでアプリを配布したいときに使う。
+//   VITE_USE_HASH_ROUTER=1 npm run build && node scripts/build-single-html.mjs <出力先>
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+const dist = join(process.cwd(), "dist");
+const assets = join(dist, "assets");
+const out = process.argv[2] ?? join(dist, "single.html");
+
+const files = readdirSync(assets);
+const jsFile = files.find((f) => f.endsWith(".js"));
+const cssFile = files.find((f) => f.endsWith(".css"));
+if (!jsFile || !cssFile) {
+  throw new Error("dist/assets に JS/CSS が見つかりません。先に npm run build を実行してください。");
+}
+
+const js = readFileSync(join(assets, jsFile), "utf8")
+  // インラインscript内で </script> が現れると HTML が壊れるためエスケープ
+  .replaceAll("</script", "<\\/script");
+const css = readFileSync(join(assets, cssFile), "utf8");
+
+const html = `<title>FitCoach — AIトレーナー</title>
+<style>
+${css}
+</style>
+<div id="root"></div>
+<script type="module">
+${js}
+</script>
+`;
+
+writeFileSync(out, html);
+console.log(`書き出しました: ${out} (${Math.round(html.length / 1024)} KB)`);
