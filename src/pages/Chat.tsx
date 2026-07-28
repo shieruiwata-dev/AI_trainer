@@ -66,8 +66,13 @@ export default function Chat() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [caloriesOpen, setCaloriesOpen] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
   const caloriesPanel = useAnimatedPresence(caloriesOpen, 200);
   const menuPopover = useAnimatedPresence(menuOpen, 150);
+
+  useEffect(() => {
+    if (!menuOpen) setDeleteArmed(false);
+  }, [menuOpen]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -177,9 +182,16 @@ export default function Chat() {
   }
 
   function newChat() {
+    const hadConversation = currentId !== null;
     setCurrentId(null);
     setDrawerOpen(false);
     setMenuOpen(false);
+    setInput("");
+    toast(
+      hadConversation
+        ? "新しいチャットを開始しました"
+        : "すでに新しいチャットです"
+    );
   }
 
   function shareCurrent() {
@@ -199,10 +211,16 @@ export default function Chat() {
 
   function deleteCurrent() {
     if (!current) return;
-    if (!confirm("この会話を削除しますか?")) return;
+    // confirm() はプレビュー環境でブロックされることがあるため2段階タップで確認
+    if (!deleteArmed) {
+      setDeleteArmed(true);
+      return;
+    }
     setConvs((prev) => prev.filter((c) => c.id !== current.id));
     setCurrentId(null);
     setMenuOpen(false);
+    setDeleteArmed(false);
+    toast("会話を削除しました");
   }
 
   const mode = getTrainerMode();
@@ -407,9 +425,10 @@ export default function Chat() {
                 onClick={togglePin}
               />
               <MenuItem
-                label="削除する"
+                label={deleteArmed ? "タップして完全に削除" : "削除する"}
                 icon={<Trash2 className="h-5 w-5" strokeWidth={1.8} />}
                 destructive
+                emphasized={deleteArmed}
                 onClick={deleteCurrent}
               />
             </div>
@@ -674,18 +693,21 @@ function MenuItem({
   icon,
   onClick,
   destructive = false,
+  emphasized = false,
 }: {
   label: string;
   icon: React.ReactNode;
   onClick: () => void;
   destructive?: boolean;
+  emphasized?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
         "flex w-full items-center justify-between border-t border-black/5 px-4 py-3.5 text-left text-[16px] transition-colors active:bg-muted/60",
-        destructive ? "text-destructive" : "text-foreground"
+        destructive ? "text-destructive" : "text-foreground",
+        emphasized && "bg-destructive/10 font-semibold"
       )}
     >
       {label}

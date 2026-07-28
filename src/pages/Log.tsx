@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   Area,
   AreaChart,
@@ -559,6 +560,22 @@ function HistoryList({
   onDelete: (id: string) => Promise<void>;
   emptyText: string;
 }) {
+  // confirm() はプレビュー環境でブロックされることがあるため2段階タップで確認
+  const [armedId, setArmedId] = useState<string | null>(null);
+
+  function handleDelete(id: string) {
+    if (armedId === id) {
+      setArmedId(null);
+      onDelete(id);
+      toast("削除しました");
+    } else {
+      setArmedId(id);
+      setTimeout(() => {
+        setArmedId((cur) => (cur === id ? null : cur));
+      }, 3000);
+    }
+  }
+
   if (items.length === 0) {
     return (
       <p className="py-6 text-center text-[14px] text-muted-foreground">
@@ -572,20 +589,24 @@ function HistoryList({
         {items.map((item) => (
           <li
             key={item.id}
-            className="flex items-center justify-between px-4 py-3"
+            className="flex items-center justify-between gap-2 px-4 py-3"
           >
             <div className="min-w-0">
               <p className="truncate text-[15px] font-medium">{item.title}</p>
               <p className="text-[13px] text-muted-foreground">{item.sub}</p>
             </div>
             <button
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-transform active:scale-95 hover:text-destructive"
-              onClick={() => {
-                if (confirm("この記録を削除しますか?")) onDelete(item.id);
-              }}
-              aria-label="削除"
+              className={cn(
+                "flex h-8 shrink-0 items-center justify-center gap-1 rounded-full transition-[transform,colors] active:scale-95",
+                armedId === item.id
+                  ? "bg-destructive px-3 text-[13px] font-medium text-destructive-foreground"
+                  : "w-8 text-muted-foreground hover:text-destructive"
+              )}
+              onClick={() => handleDelete(item.id)}
+              aria-label={armedId === item.id ? "タップして削除を確定" : "削除"}
             >
               <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+              {armedId === item.id && "削除"}
             </button>
           </li>
         ))}

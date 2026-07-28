@@ -11,7 +11,8 @@ const Router = import.meta.env.VITE_USE_HASH_ROUTER ? HashRouter : BrowserRouter
 export default function App() {
   return (
     <Router>
-      <Toaster position="top-center" />
+      {/* ヘッダー操作を塞がないよう入力バーの上に表示 */}
+      <Toaster position="bottom-center" offset={96} duration={2000} />
       {/* 広い画面ではスマホ端末風フレームに収める。スマホ実機では全画面 */}
       <div className="md:flex md:min-h-dvh md:items-center md:justify-center md:bg-[#e2e2e7] md:p-6">
         <div className="flex h-dvh flex-col overflow-hidden bg-background md:h-[844px] md:max-h-[92dvh] md:w-[390px] md:rounded-[2.5rem] md:border-8 md:border-[#1d1d1f] md:shadow-2xl">
