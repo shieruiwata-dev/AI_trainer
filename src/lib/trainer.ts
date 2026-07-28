@@ -27,12 +27,6 @@ export function getTrainerMode(): TrainerMode {
   return "demo";
 }
 
-const CONVERSATION_KEY = "fitcoach.dify_conversation_id";
-
-export function resetConversation() {
-  localStorage.removeItem(CONVERSATION_KEY);
-}
-
 function buildContext(ctx: TrainerContext): string {
   const goal =
     ctx.profile.goalType === "diet"
@@ -57,21 +51,28 @@ function buildContext(ctx: TrainerContext): string {
   return parts.filter(Boolean).join(" / ");
 }
 
+export interface TrainerReply {
+  answer: string;
+  /** Dify 側の会話ID。次回送信時に渡すと文脈が継続する */
+  difyConversationId?: string;
+}
+
 /**
  * メッセージを送信し、応答をストリーミングで受け取る。
- * onChunk は応答本文の増分ごとに呼ばれる。戻り値は完全な応答。
+ * onChunk は応答本文の増分ごとに呼ばれる。
  */
 export async function sendToTrainer(
   message: string,
   ctx: TrainerContext,
-  onChunk: (partial: string) => void
-): Promise<string> {
+  onChunk: (partial: string) => void,
+  difyConversationId?: string
+): Promise<TrainerReply> {
   const mode = getTrainerMode();
   if (mode === "demo") {
-    return demoReply(message, ctx, onChunk);
+    return { answer: await demoReply(message, ctx, onChunk) };
   }
 
-  const conversationId = localStorage.getItem(CONVERSATION_KEY) ?? "";
+  const conversationId = difyConversationId ?? "";
   const body = {
     query: message,
     inputs: { context: buildContext(ctx) },
@@ -112,6 +113,7 @@ export async function sendToTrainer(
   const decoder = new TextDecoder();
   let buffer = "";
   let answer = "";
+  let newConversationId = difyConversationId;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -132,7 +134,7 @@ export async function sendToTrainer(
           onChunk(answer);
         } else if (event.event === "message_end") {
           if (event.conversation_id) {
-            localStorage.setItem(CONVERSATION_KEY, event.conversation_id);
+            newConversationId = event.conversation_id;
           }
         } else if (event.event === "error") {
           throw new Error(event.message ?? "Dify でエラーが発生しました");
@@ -144,7 +146,7 @@ export async function sendToTrainer(
     }
   }
 
-  return answer;
+  return { answer, difyConversationId: newConversationId };
 }
 
 // ---------- デモモード ----------
