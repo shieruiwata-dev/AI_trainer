@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAppData } from "@/hooks/useAppData";
 import { formatDateJa, todayStr } from "@/lib/utils";
@@ -15,17 +24,34 @@ import {
   type WorkoutCategory,
 } from "@/lib/types";
 
+const ACTION_BLUE = "#0066cc";
+
 export default function Log() {
   const data = useAppData();
 
   return (
-    <div className="animate-fade-in space-y-4 p-4">
-      <header className="pt-2">
-        <h1 className="text-2xl font-bold">記録</h1>
-        <p className="text-sm text-muted-foreground">
-          毎日の記録が、変化への一番の近道です
+    <div className="animate-fade-in space-y-5 p-4 pt-6">
+      <header className="px-1">
+        <h1 className="text-[28px] leading-[1.14]">記録</h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">
+          毎日の記録が、変化への一番の近道。
         </p>
       </header>
+
+      {/* サマリー */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <StatCard value={`${data.streakDays}`} unit="日" label="連続記録" />
+        <StatCard
+          value={`${data.todayCalories}`}
+          unit="kcal"
+          label="今日の摂取"
+        />
+        <StatCard
+          value={data.latestWeightKg != null ? `${data.latestWeightKg}` : "–"}
+          unit="kg"
+          label="体重"
+        />
+      </div>
 
       <Tabs defaultValue="weight">
         <TabsList>
@@ -48,12 +74,50 @@ export default function Log() {
   );
 }
 
+function StatCard({
+  value,
+  unit,
+  label,
+}: {
+  value: string;
+  unit: string;
+  label: string;
+}) {
+  return (
+    <div className="rounded-[18px] border bg-card px-3 py-3.5 text-center">
+      <p className="text-[22px] font-semibold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+        {value}
+        <span className="ml-0.5 text-[12px] font-normal text-muted-foreground">
+          {unit}
+        </span>
+      </p>
+      <p className="mt-1.5 text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
 type Data = ReturnType<typeof useAppData>;
 
 function WeightTab({ data }: { data: Data }) {
   const [date, setDate] = useState(todayStr());
   const [weight, setWeight] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const { profile } = data;
+  const weightProgress = (() => {
+    const { startWeightKg, targetWeightKg } = profile;
+    const current = data.latestWeightKg;
+    if (startWeightKg == null || targetWeightKg == null || current == null)
+      return null;
+    const total = startWeightKg - targetWeightKg;
+    if (total === 0) return 100;
+    return Math.min(100, Math.max(0, ((startWeightKg - current) / total) * 100));
+  })();
+
+  const chartData = data.weights.slice(-14).map((w) => ({
+    date: formatDateJa(w.date),
+    weight: w.weightKg,
+  }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,7 +131,7 @@ function WeightTab({ data }: { data: Data }) {
       await data.store!.addWeightLog({ date, weightKg: w });
       await data.reload();
       setWeight("");
-      toast.success("体重を記録しました!");
+      toast.success("体重を記録しました");
     } catch {
       toast.error("保存に失敗しました");
     } finally {
@@ -82,9 +146,74 @@ function WeightTab({ data }: { data: Data }) {
 
   return (
     <div className="space-y-4">
+      {/* 推移グラフ */}
+      {chartData.length >= 2 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-[15px]">推移</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-36">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={chartData}
+                  margin={{ top: 5, right: 5, bottom: 0, left: -22 }}
+                >
+                  <defs>
+                    <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={ACTION_BLUE} stopOpacity={0.16} />
+                      <stop offset="100%" stopColor={ACTION_BLUE} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 11, fill: "#7a7a7a" }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    domain={["dataMin - 1", "dataMax + 1"]}
+                    tick={{ fontSize: 11, fill: "#7a7a7a" }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(v) => [`${v} kg`, "体重"]}
+                    contentStyle={{
+                      borderRadius: 11,
+                      fontSize: 13,
+                      border: "1px solid #e0e0e0",
+                      boxShadow: "none",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="weight"
+                    stroke={ACTION_BLUE}
+                    strokeWidth={2}
+                    fill="url(#weightFill)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            {weightProgress != null && (
+              <div className="mt-3">
+                <Progress value={weightProgress} />
+                <p className="mt-2 text-[13px] text-muted-foreground">
+                  目標 {profile.targetWeightKg}kg まで達成率{" "}
+                  <span className="[font-variant-numeric:tabular-nums]">
+                    {Math.round(weightProgress)}%
+                  </span>
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
-        <CardContent className="p-4">
-          <form onSubmit={submit} className="space-y-3">
+        <CardContent className="p-5">
+          <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="w-date">日付</Label>
@@ -110,7 +239,11 @@ function WeightTab({ data }: { data: Data }) {
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={saving || !data.store}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={saving || !data.store}
+            >
               記録する
             </Button>
           </form>
@@ -118,13 +251,16 @@ function WeightTab({ data }: { data: Data }) {
       </Card>
 
       <HistoryList
-        items={[...data.weights].reverse().slice(0, 30).map((w) => ({
-          id: w.id,
-          title: `${w.weightKg} kg`,
-          sub: formatDateJa(w.date),
-        }))}
+        items={[...data.weights]
+          .reverse()
+          .slice(0, 30)
+          .map((w) => ({
+            id: w.id,
+            title: `${w.weightKg} kg`,
+            sub: formatDateJa(w.date),
+          }))}
         onDelete={remove}
-        emptyText="まだ記録がありません。今日の体重から始めましょう!"
+        emptyText="まだ記録がありません。今日の体重から始めましょう。"
       />
     </div>
   );
@@ -159,7 +295,7 @@ function MealTab({ data }: { data: Data }) {
       setName("");
       setCalories("");
       setProtein("");
-      toast.success("食事を記録しました!");
+      toast.success("食事を記録しました");
     } catch {
       toast.error("保存に失敗しました");
     } finally {
@@ -172,11 +308,33 @@ function MealTab({ data }: { data: Data }) {
     await data.reload();
   }
 
+  const calorieRatio =
+    data.profile.targetCalories != null && data.profile.targetCalories > 0
+      ? Math.min(100, (data.todayCalories / data.profile.targetCalories) * 100)
+      : null;
+
   return (
     <div className="space-y-4">
+      {calorieRatio != null && (
+        <Card>
+          <CardContent className="p-5">
+            <Progress value={calorieRatio} />
+            <p className="mt-2 text-[13px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+              今日 {data.todayCalories} / {data.profile.targetCalories} kcal
+              (残り{" "}
+              {Math.max(
+                0,
+                (data.profile.targetCalories ?? 0) - data.todayCalories
+              )}{" "}
+              kcal)
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
-        <CardContent className="p-4">
-          <form onSubmit={submit} className="space-y-3">
+        <CardContent className="p-5">
+          <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="m-date">日付</Label>
@@ -190,18 +348,12 @@ function MealTab({ data }: { data: Data }) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="m-type">区分</Label>
-                <select
+                <NativeSelect
                   id="m-type"
                   value={mealType}
-                  onChange={(e) => setMealType(e.target.value as MealType)}
-                  className="flex h-10 w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {Object.entries(MEAL_TYPE_LABEL).map(([v, label]) => (
-                    <option key={v} value={v}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setMealType(v as MealType)}
+                  options={MEAL_TYPE_LABEL}
+                />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -240,21 +392,16 @@ function MealTab({ data }: { data: Data }) {
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={saving || !data.store}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={saving || !data.store}
+            >
               記録する
             </Button>
           </form>
         </CardContent>
       </Card>
-
-      <p className="text-xs text-muted-foreground">
-        今日の合計: <b>{data.todayCalories} kcal</b>
-        {data.todayProteinG > 0 && (
-          <>
-            {" "}/ たんぱく質 <b>{data.todayProteinG} g</b>
-          </>
-        )}
-      </p>
 
       <HistoryList
         items={data.meals.slice(0, 30).map((m) => ({
@@ -263,7 +410,7 @@ function MealTab({ data }: { data: Data }) {
           sub: `${formatDateJa(m.date)} ${MEAL_TYPE_LABEL[m.mealType]}`,
         }))}
         onDelete={remove}
-        emptyText="まだ記録がありません。今日食べたものを記録しましょう!"
+        emptyText="まだ記録がありません。今日食べたものを記録しましょう。"
       />
     </div>
   );
@@ -293,7 +440,7 @@ function WorkoutTab({ data }: { data: Data }) {
       await data.reload();
       setName("");
       setDetail("");
-      toast.success("ナイストレーニング!記録しました💪");
+      toast.success("ナイストレーニング。記録しました");
     } catch {
       toast.error("保存に失敗しました");
     } finally {
@@ -309,8 +456,8 @@ function WorkoutTab({ data }: { data: Data }) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="p-4">
-          <form onSubmit={submit} className="space-y-3">
+        <CardContent className="p-5">
+          <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="t-date">日付</Label>
@@ -324,20 +471,12 @@ function WorkoutTab({ data }: { data: Data }) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="t-cat">種類</Label>
-                <select
+                <NativeSelect
                   id="t-cat"
                   value={category}
-                  onChange={(e) =>
-                    setCategory(e.target.value as WorkoutCategory)
-                  }
-                  className="flex h-10 w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {Object.entries(WORKOUT_CATEGORY_LABEL).map(([v, label]) => (
-                    <option key={v} value={v}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setCategory(v as WorkoutCategory)}
+                  options={WORKOUT_CATEGORY_LABEL}
+                />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -358,7 +497,11 @@ function WorkoutTab({ data }: { data: Data }) {
                 onChange={(e) => setDetail(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={saving || !data.store}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={saving || !data.store}
+            >
               記録する
             </Button>
           </form>
@@ -372,9 +515,36 @@ function WorkoutTab({ data }: { data: Data }) {
           sub: `${formatDateJa(w.date)} ${WORKOUT_CATEGORY_LABEL[w.category]}`,
         }))}
         onDelete={remove}
-        emptyText="まだ記録がありません。軽い運動からでOK!"
+        emptyText="まだ記録がありません。軽い運動からでOK。"
       />
     </div>
+  );
+}
+
+function NativeSelect({
+  id,
+  value,
+  onChange,
+  options,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: Record<string, string>;
+}) {
+  return (
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="flex h-11 w-full appearance-none rounded-[11px] border border-input bg-card px-3.5 py-2 text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {Object.entries(options).map(([v, label]) => (
+        <option key={v} value={v}>
+          {label}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -389,35 +559,35 @@ function HistoryList({
 }) {
   if (items.length === 0) {
     return (
-      <p className="py-6 text-center text-sm text-muted-foreground">
+      <p className="py-6 text-center text-[14px] text-muted-foreground">
         {emptyText}
       </p>
     );
   }
   return (
-    <ul className="space-y-2">
-      {items.map((item) => (
-        <li
-          key={item.id}
-          className="flex items-center justify-between rounded-xl border bg-card px-4 py-3"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{item.title}</p>
-            <p className="text-xs text-muted-foreground">{item.sub}</p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-            onClick={() => {
-              if (confirm("この記録を削除しますか?")) onDelete(item.id);
-            }}
-            aria-label="削除"
+    <div className="overflow-hidden rounded-[18px] border bg-card">
+      <ul className="divide-y">
+        {items.map((item) => (
+          <li
+            key={item.id}
+            className="flex items-center justify-between px-4 py-3"
           >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </li>
-      ))}
-    </ul>
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-medium">{item.title}</p>
+              <p className="text-[13px] text-muted-foreground">{item.sub}</p>
+            </div>
+            <button
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-transform active:scale-95 hover:text-destructive"
+              onClick={() => {
+                if (confirm("この記録を削除しますか?")) onDelete(item.id);
+              }}
+              aria-label="削除"
+            >
+              <Trash2 className="h-4 w-4" strokeWidth={1.8} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

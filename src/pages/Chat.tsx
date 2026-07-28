@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Dumbbell, RotateCcw, Send } from "lucide-react";
+import { ArrowUp, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppData } from "@/hooks/useAppData";
 import {
@@ -81,7 +80,9 @@ export default function Chat() {
     } catch (e) {
       console.error(e);
       toast.error(
-        e instanceof Error ? e.message : "送信に失敗しました。もう一度お試しください。"
+        e instanceof Error
+          ? e.message
+          : "送信に失敗しました。もう一度お試しください。"
       );
     } finally {
       setSending(false);
@@ -97,42 +98,46 @@ export default function Chat() {
   }
 
   const mode = getTrainerMode();
+  const greetName = data.profile.name ? `${data.profile.name}さん` : "";
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b bg-card/60 px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Dumbbell className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold">AIトレーナー</h1>
-            <p className="text-[11px] text-muted-foreground">
-              {mode === "demo"
-                ? "デモモード(バックエンド未接続)"
-                : "オンライン"}
-            </p>
-          </div>
+    <div className="flex h-full flex-col bg-card">
+      {/* フロストガラスのヘッダー */}
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-card/80 px-5 py-3 backdrop-blur-xl">
+        <div>
+          <h1 className="text-[21px] leading-tight">トレーナー</h1>
+          <p className="text-xs text-muted-foreground">
+            {mode === "demo" ? "デモモード" : "オンライン"}
+          </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={handleReset} aria-label="会話をリセット">
-          <RotateCcw className="h-4 w-4" />
-        </Button>
+        <button
+          onClick={handleReset}
+          aria-label="会話をリセット"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-primary transition-transform active:scale-95 hover:bg-muted"
+        >
+          <RotateCcw className="h-4 w-4" strokeWidth={1.8} />
+        </button>
       </header>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="flex-1 space-y-2.5 overflow-y-auto px-4 py-4">
         {messages.length === 0 && streamingText === null && (
-          <div className="space-y-4 pt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              食事・筋トレ・モチベーションのことなら
-              <br />
-              なんでも相談してください💪
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex h-full flex-col justify-end gap-8 pb-4">
+            <div className="space-y-2 px-1 text-center">
+              <h2 className="text-[28px] leading-[1.2] [text-wrap:balance]">
+                こんにちは{greetName && `、${greetName}`}。
+              </h2>
+              <p className="text-[15px] text-muted-foreground">
+                食事、筋トレ、モチベーション。
+                <br />
+                なんでも相談してください。
+              </p>
+            </div>
+            <div className="flex flex-col items-stretch gap-2">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="rounded-full border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
+                  className="rounded-full border bg-card px-5 py-3 text-left text-[15px] text-primary transition-transform active:scale-[0.97]"
                 >
                   {s}
                 </button>
@@ -145,15 +150,13 @@ export default function Chat() {
           <MessageBubble key={m.id} role={m.role} content={m.content} />
         ))}
         {streamingText !== null && (
-          <MessageBubble
-            role="assistant"
-            content={streamingText || "…"}
-          />
+          <MessageBubble role="assistant" content={streamingText || "…"} />
         )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="border-t bg-card/60 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {/* iMessage風の入力バー */}
+      <div className="border-t bg-card/80 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl">
         <form
           className="flex items-end gap-2"
           onSubmit={(e) => {
@@ -165,24 +168,27 @@ export default function Chat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
                 e.preventDefault();
                 send(input);
               }
             }}
-            placeholder="メッセージを入力…"
+            placeholder="メッセージ"
             rows={1}
             className="max-h-28 min-h-[44px] flex-1 resize-none"
           />
-          <Button
+          <button
             type="submit"
-            size="icon"
             disabled={sending || !input.trim()}
             aria-label="送信"
-            className="h-11 w-11 shrink-0"
+            className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-40 mb-[3px]"
           >
-            <Send className="h-4 w-4" />
-          </Button>
+            <ArrowUp className="h-5 w-5" strokeWidth={2.2} />
+          </button>
         </form>
       </div>
     </div>
@@ -206,10 +212,10 @@ function MessageBubble({
     >
       <div
         className={cn(
-          "max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+          "max-w-[80%] whitespace-pre-wrap rounded-[18px] px-4 py-2 text-[16px] leading-[1.4]",
           isUser
-            ? "rounded-br-md bg-primary text-primary-foreground"
-            : "rounded-bl-md border bg-card"
+            ? "rounded-br-[5px] bg-primary text-primary-foreground"
+            : "rounded-bl-[5px] bg-muted text-foreground"
         )}
       >
         {content}

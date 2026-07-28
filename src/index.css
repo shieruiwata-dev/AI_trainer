@@ -4,32 +4,33 @@
 
 @layer base {
   :root {
-    --background: 160 30% 98%;
-    --foreground: 168 30% 12%;
+    /* Apple design language: 単一アクセント(Action Blue)+ 白/パーチメント面 */
+    --background: 240 11% 96%; /* #f5f5f7 parchment */
+    --foreground: 240 3% 12%; /* #1d1d1f ink */
 
-    --card: 0 0% 100%;
-    --card-foreground: 168 30% 12%;
+    --card: 0 0% 100%; /* #ffffff canvas */
+    --card-foreground: 240 3% 12%;
 
-    --primary: 160 84% 33%;
+    --primary: 210 100% 40%; /* #0066cc Action Blue */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 160 25% 94%;
-    --secondary-foreground: 168 30% 16%;
+    --secondary: 240 11% 96%; /* parchment */
+    --secondary-foreground: 240 3% 12%;
 
-    --muted: 160 20% 94%;
-    --muted-foreground: 168 10% 42%;
+    --muted: 240 12% 92%; /* #e8e8ed */
+    --muted-foreground: 0 0% 48%; /* #7a7a7a */
 
-    --accent: 32 95% 55%;
+    --accent: 210 100% 40%; /* 第二色は作らない — アクセントは常にAction Blue */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 4 100% 59%; /* #ff3b30 */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 160 20% 88%;
-    --input: 160 20% 85%;
-    --ring: 160 84% 33%;
+    --border: 0 0% 88%; /* #e0e0e0 hairline */
+    --input: 0 0% 88%;
+    --ring: 210 100% 44%; /* #0071e3 focus */
 
-    --radius: 1rem;
+    --radius: 18px;
   }
 }
 
@@ -42,7 +43,15 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "BIZ UDPGothic",
-      Meiryo, system-ui, -apple-system, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+      "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+      "BIZ UDPGothic", Meiryo, system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.47;
+  }
+  /* 見出しはSF Pro Display相当: weight 600 + タイトな字間 */
+  h1, h2, h3 {
+    @apply font-semibold;
+    letter-spacing: -0.02em;
   }
 }

@@ -48,7 +48,7 @@ export default function Settings() {
         targetCalories: num(targetCalories),
       });
       await data.reload();
-      toast.success("設定を保存しました!");
+      toast.success("設定を保存しました");
     } catch {
       toast.error("保存に失敗しました");
     } finally {
@@ -59,20 +59,20 @@ export default function Settings() {
   const mode = getTrainerMode();
 
   return (
-    <div className="animate-fade-in space-y-4 p-4">
-      <header className="pt-2">
-        <h1 className="text-2xl font-bold">設定</h1>
-        <p className="text-sm text-muted-foreground">
-          目標を設定すると、AIトレーナーのアドバイスがより具体的になります
+    <div className="animate-fade-in space-y-5 p-4 pt-6">
+      <header className="px-1">
+        <h1 className="text-[28px] leading-[1.14]">設定</h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">
+          目標を設定すると、トレーナーのアドバイスがより具体的になります。
         </p>
       </header>
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">プロフィール & 目標</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[15px]">プロフィールと目標</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={save} className="space-y-3">
+          <form onSubmit={save} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="s-name">ニックネーム</Label>
               <Input
@@ -88,7 +88,7 @@ export default function Settings() {
                 id="s-goal"
                 value={goalType}
                 onChange={(e) => setGoalType(e.target.value as GoalType)}
-                className="flex h-10 w-full rounded-xl border border-input bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-11 w-full appearance-none rounded-[11px] border border-input bg-card px-3.5 py-2 text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {Object.entries(GOAL_TYPE_LABEL).map(([v, label]) => (
                   <option key={v} value={v}>
@@ -158,10 +158,10 @@ export default function Settings() {
       </Card>
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">接続状態</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[15px]">接続状態</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
+        <CardContent className="space-y-2.5 text-[14px]">
           <StatusRow
             label="データ保存"
             value={
@@ -182,7 +182,7 @@ export default function Settings() {
             }
             ok={mode !== "demo"}
           />
-          <p className="pt-1 text-xs text-muted-foreground">
+          <p className="pt-1 text-[13px] text-muted-foreground">
             バックエンド(Supabase / Dify)の接続方法は README と
             docs/backend-setup.md を参照してください。
           </p>
@@ -207,7 +207,7 @@ function StatusRow({
       <span className="flex items-center gap-1.5 text-right font-medium">
         <span
           className={`inline-block h-2 w-2 rounded-full ${
-            ok ? "bg-primary" : "bg-accent"
+            ok ? "bg-primary" : "bg-[#7a7a7a]"
           }`}
         />
         {value}
