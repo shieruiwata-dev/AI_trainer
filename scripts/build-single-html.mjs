@@ -21,6 +21,20 @@ const js = readFileSync(join(assets, jsFile), "utf8")
 const css = readFileSync(join(assets, cssFile), "utf8");
 
 const html = `<title>FitCoach — AIトレーナー</title>
+<script>
+// iPhoneのノッチ/ホームインジケーター対応: env(safe-area-inset-*) を有効化
+(function () {
+  var content = "width=device-width, initial-scale=1.0, viewport-fit=cover";
+  var m = document.querySelector('meta[name="viewport"]');
+  if (m) m.setAttribute("content", content);
+  else {
+    m = document.createElement("meta");
+    m.name = "viewport";
+    m.content = content;
+    document.head.appendChild(m);
+  }
+})();
+</script>
 <style>
 ${css}
 </style>

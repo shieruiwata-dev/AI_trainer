@@ -193,7 +193,7 @@ export default function Chat() {
       {/* ===== サイドバー(メイン画面の下に常駐) ===== */}
       <aside
         className={cn(
-          "absolute inset-y-0 left-0 flex w-[85%] flex-col bg-background pt-4 transition-[transform,opacity] duration-300 ease-ios",
+          "absolute inset-y-0 left-0 flex w-[85%] flex-col bg-background pt-[max(calc(env(safe-area-inset-top,0px)+0.75rem),1rem)] transition-[transform,opacity] duration-300 ease-ios",
           drawerOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"
         )}
         aria-hidden={!drawerOpen}
@@ -264,7 +264,7 @@ export default function Chat() {
         </div>
 
         {/* 下部フローティング: チャット + 設定 */}
-        <div className="absolute inset-x-4 bottom-5 flex items-center justify-between">
+        <div className="absolute inset-x-4 bottom-[max(calc(env(safe-area-inset-bottom,0px)+0.75rem),1.25rem)] flex items-center justify-between">
           <button
             onClick={newChat}
             className="flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-[17px] font-medium text-primary-foreground transition-transform active:scale-95"
@@ -298,8 +298,8 @@ export default function Chat() {
           />
         )}
 
-        {/* ヘッダー */}
-        <header className="flex items-center gap-3 px-4 py-3">
+        {/* ヘッダー(iPhoneのノッチを避けるセーフエリア付き) */}
+        <header className="flex items-center gap-3 px-4 pb-3 pt-[max(calc(env(safe-area-inset-top,0px)+0.5rem),0.75rem)]">
           <IconButton label="メニュー" onClick={() => setDrawerOpen(true)}>
             <Menu className="h-6 w-6" strokeWidth={1.8} />
           </IconButton>
@@ -409,8 +409,8 @@ export default function Chat() {
           </div>
         )}
 
-        {/* 入力バー */}
-        <div className="px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1">
+        {/* 入力バー(ホームインジケーターを避けるセーフエリア付き) */}
+        <div className="px-3 pb-[max(calc(env(safe-area-inset-bottom,0px)+0.5rem),1rem)] pt-1">
           <form
             className="flex items-end gap-1 rounded-[28px] bg-muted px-2 py-1.5"
             onSubmit={(e) => {

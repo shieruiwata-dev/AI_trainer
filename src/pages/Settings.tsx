@@ -60,7 +60,7 @@ export default function Settings() {
   const mode = getTrainerMode();
 
   return (
-    <div className="animate-fade-in space-y-5 p-4 pt-3">
+    <div className="animate-fade-in space-y-5 p-4 pb-[max(calc(env(safe-area-inset-bottom,0px)+1rem),1.5rem)] pt-[max(calc(env(safe-area-inset-top,0px)+0.5rem),0.75rem)]">
       <BackLink />
       <header className="px-1">
         <h1 className="text-[28px] leading-[1.14]">設定</h1>
