@@ -39,6 +39,23 @@ const SUGGESTIONS = [
   "停滞期を抜けるには?",
 ];
 
+/**
+ * 閉じるときも退出アニメーションを流すためのマウント管理。
+ * open=false になってから duration ms は closing 状態でマウントを維持する。
+ */
+function useAnimatedPresence(open: boolean, duration = 200) {
+  const [mounted, setMounted] = useState(open);
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      return;
+    }
+    const t = setTimeout(() => setMounted(false), duration);
+    return () => clearTimeout(t);
+  }, [open, duration]);
+  return { mounted, closing: mounted && !open };
+}
+
 export default function Chat() {
   const data = useAppData();
   const [convs, setConvs] = useState<Conversation[]>(() => loadConversations());
@@ -49,6 +66,8 @@ export default function Chat() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [caloriesOpen, setCaloriesOpen] = useState(false);
+  const caloriesPanel = useAnimatedPresence(caloriesOpen, 200);
+  const menuPopover = useAnimatedPresence(menuOpen, 150);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -335,14 +354,17 @@ export default function Chat() {
         </header>
 
         {/* カロリーパネル(ヘッダー下に少しだけ展開) */}
-        {caloriesOpen && (
+        {caloriesPanel.mounted && (
           <>
-            <button
-              aria-label="カロリーパネルを閉じる"
-              className="absolute inset-0 z-40"
-              onClick={() => setCaloriesOpen(false)}
-            />
+            {!caloriesPanel.closing && (
+              <button
+                aria-label="カロリーパネルを閉じる"
+                className="absolute inset-0 z-40"
+                onClick={() => setCaloriesOpen(false)}
+              />
+            )}
             <CaloriesPanel
+              closing={caloriesPanel.closing}
               todayCalories={data.todayCalories}
               targetCalories={data.profile.targetCalories}
             />
@@ -350,14 +372,21 @@ export default function Chat() {
         )}
 
         {/* ...メニュー(すりガラスのポップオーバー) */}
-        {menuOpen && current && (
+        {menuPopover.mounted && current && (
           <>
-            <button
-              aria-label="メニューを閉じる"
-              className="absolute inset-0 z-40"
-              onClick={() => setMenuOpen(false)}
-            />
-            <div className="absolute right-3 top-14 z-50 w-[270px] origin-top-right animate-pop-in overflow-hidden rounded-[16px] border border-black/5 bg-card/85 shadow-[0_12px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+            {!menuPopover.closing && (
+              <button
+                aria-label="メニューを閉じる"
+                className="absolute inset-0 z-40"
+                onClick={() => setMenuOpen(false)}
+              />
+            )}
+            <div
+              className={cn(
+                "absolute right-3 top-[calc(env(safe-area-inset-top,0px)+3.5rem)] z-50 w-[270px] origin-top-right overflow-hidden rounded-[16px] border border-black/5 bg-card/85 shadow-[0_12px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl",
+                menuPopover.closing ? "animate-pop-out" : "animate-pop-in"
+              )}
+            >
               <p className="truncate border-b border-black/5 px-4 py-2.5 text-[13px] text-muted-foreground">
                 {current.title}
               </p>
@@ -516,9 +545,11 @@ function UtensilsIcon({ className }: { className?: string }) {
 
 /** ヘッダー下に展開する今日のカロリーパネル */
 function CaloriesPanel({
+  closing,
   todayCalories,
   targetCalories,
 }: {
+  closing: boolean;
   todayCalories: number;
   targetCalories: number | null;
 }) {
@@ -530,7 +561,12 @@ function CaloriesPanel({
     : null;
 
   return (
-    <div className="absolute inset-x-3 top-[calc(env(safe-area-inset-top,0px)+3.75rem)] z-50 origin-top animate-drop-in rounded-[16px] border border-black/5 bg-card/90 px-5 py-4 shadow-[0_12px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl">
+    <div
+      className={cn(
+        "absolute inset-x-3 top-[calc(env(safe-area-inset-top,0px)+3.75rem)] z-50 origin-top rounded-[16px] border border-black/5 bg-card/90 px-5 py-4 shadow-[0_12px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl",
+        closing ? "animate-drop-out" : "animate-drop-in"
+      )}
+    >
       <p className="text-[13px] font-semibold text-muted-foreground">
         今日の食事
       </p>
