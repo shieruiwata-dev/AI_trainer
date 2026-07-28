@@ -14,16 +14,21 @@ export default function App() {
   return (
     <Router>
       <Toaster position="top-center" richColors />
-      <div className="mx-auto min-h-dvh max-w-screen-sm pb-20">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/log" element={<Log />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+      {/* 広い画面ではスマホ端末風フレームに収める。スマホ実機では全画面 */}
+      <div className="md:flex md:min-h-dvh md:items-center md:justify-center md:bg-[radial-gradient(ellipse_at_top,hsl(160_35%_90%),hsl(160_20%_82%))] md:p-6">
+        <div className="flex h-dvh flex-col overflow-hidden bg-background md:h-[844px] md:max-h-[92dvh] md:w-[390px] md:rounded-[2.5rem] md:border-8 md:border-slate-800 md:shadow-2xl">
+          <main className="min-h-0 flex-1 overflow-y-auto">
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/log" element={<Log />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </main>
+          <BottomNav />
+        </div>
       </div>
-      <BottomNav />
     </Router>
   );
 }

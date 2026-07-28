@@ -11,8 +11,8 @@ const items = [
 
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-[env(safe-area-inset-bottom)]">
-      <div className="mx-auto flex max-w-screen-sm">
+    <nav className="z-50 shrink-0 border-t bg-card pb-[env(safe-area-inset-bottom)]">
+      <div className="flex">
         {items.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}

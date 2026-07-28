@@ -99,7 +99,7 @@ export default function Chat() {
   const mode = getTrainerMode();
 
   return (
-    <div className="flex h-[calc(100dvh-5rem)] flex-col">
+    <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b bg-card/60 px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
