@@ -266,12 +266,8 @@ async function initStore(): Promise<DataStore> {
   if (!supabase) return new LocalStore();
   try {
     const { data: sessionData } = await supabase.auth.getSession();
-    let userId = sessionData.session?.user.id;
-    if (!userId) {
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error || !data.user) throw error ?? new Error("匿名認証に失敗");
-      userId = data.user.id;
-    }
+    const userId = sessionData.session?.user.id;
+    if (!userId) throw new Error("未ログイン");
     return new SupabaseStore(userId);
   } catch (e) {
     console.warn(
