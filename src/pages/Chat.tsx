@@ -57,6 +57,15 @@ const SUGGESTIONS = [
   "停滞期を抜けるには?",
 ];
 
+/** 確認カードのボタンと重複するためチップとして表示しない候補 */
+const DUPLICATE_OF_CARD_BUTTONS = [
+  "この内容で記録",
+  "この内容で保存",
+  "このメニューで開始",
+  "この目標で設定",
+  "キャンセル",
+];
+
 /**
  * 閉じるときも退出アニメーションを流すためのマウント管理。
  * open=false になってから duration ms は closing 状態でマウントを維持する。
@@ -630,15 +639,21 @@ export default function Chat() {
                 )}
                 {m.suggestions && m.suggestions.length > 0 && !m.decision && (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {m.suggestions.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => void sendMessage(s)}
-                        className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
-                      >
-                        {s}
-                      </button>
-                    ))}
+                    {m.suggestions
+                      .filter(
+                        // 確認カードのボタンと重複する候補は出さない
+                        (s) =>
+                          !DUPLICATE_OF_CARD_BUTTONS.some((d) => s.includes(d))
+                      )
+                      .map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => void sendMessage(s)}
+                          className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
+                        >
+                          {s}
+                        </button>
+                      ))}
                   </div>
                 )}
               </div>
