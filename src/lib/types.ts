@@ -45,6 +45,8 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   createdAt: string; // ISO
+  /** 添付画像のプレビューURL(送信時のみ) */
+  imageUrl?: string;
   /** ai-chat Edge Function の ui_type(表示切り替え用) */
   uiType?: string;
   /** ai-chat の data(pending_action_id / action など) */
