@@ -25,6 +25,8 @@ export interface MealLog {
   name: string;
   calories: number;
   proteinG?: number | null;
+  fatG?: number | null;
+  carbsG?: number | null;
 }
 
 export type WorkoutCategory = "strength" | "cardio" | "stretch";

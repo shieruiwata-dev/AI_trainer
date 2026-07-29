@@ -197,6 +197,8 @@ class SupabaseStore implements DataStore {
       name: r.name,
       calories: Number(r.calories),
       proteinG: r.protein_g,
+      fatG: r.fat_g,
+      carbsG: r.carbs_g,
     }));
   }
   async addMealLog(log: Omit<MealLog, "id">): Promise<void> {
@@ -207,6 +209,8 @@ class SupabaseStore implements DataStore {
       name: log.name,
       calories: log.calories,
       protein_g: log.proteinG ?? null,
+      fat_g: log.fatG ?? null,
+      carbs_g: log.carbsG ?? null,
     });
     if (error) throw error;
   }

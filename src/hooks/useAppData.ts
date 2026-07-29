@@ -19,6 +19,8 @@ export interface AppData {
   latestWeightKg: number | null;
   todayCalories: number;
   todayProteinG: number;
+  todayFatG: number;
+  todayCarbsG: number;
   todayMeals: MealLog[];
   todayWorkouts: WorkoutLog[];
   streakDays: number;
@@ -80,6 +82,11 @@ export function useAppData(): AppData {
       (sum, m) => sum + (m.proteinG ?? 0),
       0
     );
+    const todayFatG = todayMeals.reduce((sum, m) => sum + (m.fatG ?? 0), 0);
+    const todayCarbsG = todayMeals.reduce(
+      (sum, m) => sum + (m.carbsG ?? 0),
+      0
+    );
     const latestWeightKg =
       weights.length > 0 ? weights[weights.length - 1].weightKg : null;
 
@@ -94,6 +101,8 @@ export function useAppData(): AppData {
       todayWorkouts,
       todayCalories,
       todayProteinG,
+      todayFatG,
+      todayCarbsG,
       latestWeightKg,
       streakDays,
     };

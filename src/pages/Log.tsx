@@ -275,7 +275,15 @@ function MealTab({ data }: { data: Data }) {
   const [name, setName] = useState("");
   const [calories, setCalories] = useState("");
   const [protein, setProtein] = useState("");
+  const [fat, setFat] = useState("");
+  const [carbs, setCarbs] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const numOrNull = (s: string): number | null => {
+    if (!s.trim()) return null;
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -286,18 +294,21 @@ function MealTab({ data }: { data: Data }) {
     }
     setSaving(true);
     try {
-      const p = protein ? parseFloat(protein) : null;
       await data.store!.addMealLog({
         date,
         mealType,
         name: name.trim(),
         calories: kcal,
-        proteinG: p != null && !isNaN(p) ? p : null,
+        proteinG: numOrNull(protein),
+        fatG: numOrNull(fat),
+        carbsG: numOrNull(carbs),
       });
       await data.reload();
       setName("");
       setCalories("");
       setProtein("");
+      setFat("");
+      setCarbs("");
       toast.success("食事を記録しました");
     } catch {
       toast.error("保存に失敗しました");
@@ -382,7 +393,7 @@ function MealTab({ data }: { data: Data }) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="m-protein">たんぱく質 (g・任意)</Label>
+                <Label htmlFor="m-protein">タンパク質 (g・任意)</Label>
                 <Input
                   id="m-protein"
                   type="number"
@@ -392,6 +403,32 @@ function MealTab({ data }: { data: Data }) {
                   placeholder="30"
                   value={protein}
                   onChange={(e) => setProtein(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="m-fat">脂質 (g・任意)</Label>
+                <Input
+                  id="m-fat"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  min="0"
+                  placeholder="15"
+                  value={fat}
+                  onChange={(e) => setFat(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="m-carbs">炭水化物 (g・任意)</Label>
+                <Input
+                  id="m-carbs"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  min="0"
+                  placeholder="50"
+                  value={carbs}
+                  onChange={(e) => setCarbs(e.target.value)}
                 />
               </div>
             </div>

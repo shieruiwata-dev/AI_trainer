@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowUp,
+  Check,
   ClipboardList,
   Copy,
   Menu,
@@ -21,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { useAppData } from "@/hooks/useAppData";
 import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
+import { calcMacroTargets } from "@/lib/nutrition";
 import {
   conversationToText,
   loadConversations,
@@ -385,6 +387,9 @@ export default function Chat() {
               closing={caloriesPanel.closing}
               todayCalories={data.todayCalories}
               targetCalories={data.profile.targetCalories}
+              proteinG={data.todayProteinG}
+              fatG={data.todayFatG}
+              carbsG={data.todayCarbsG}
             />
           </>
         )}
@@ -562,81 +567,150 @@ function UtensilsIcon({ className }: { className?: string }) {
   );
 }
 
-/** ヘッダー下に展開する今日のカロリーパネル */
+/** ヘッダー下に展開する今日の食事パネル(目標チップ + 摂取kcal + PFCゲージ) */
 function CaloriesPanel({
   closing,
   todayCalories,
   targetCalories,
+  proteinG,
+  fatG,
+  carbsG,
 }: {
   closing: boolean;
   todayCalories: number;
   targetCalories: number | null;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
 }) {
   const hasTarget = targetCalories != null && targetCalories > 0;
-  const remaining = hasTarget ? targetCalories - todayCalories : null;
-  const over = remaining != null && remaining < 0;
-  const ratio = hasTarget
-    ? Math.min(100, (todayCalories / targetCalories) * 100)
-    : null;
+  const targets = hasTarget ? calcMacroTargets(targetCalories) : null;
 
   return (
     <div
       className={cn(
-        "absolute inset-x-3 top-[calc(env(safe-area-inset-top,0px)+3.75rem)] z-50 origin-top rounded-[16px] border border-black/5 bg-card/90 px-5 py-4 shadow-[0_12px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl",
+        "absolute inset-x-3 top-[calc(env(safe-area-inset-top,0px)+3.75rem)] z-50 origin-top rounded-[18px] border border-black/5 bg-card/95 px-4 pb-4 pt-4 shadow-[0_12px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl",
         closing ? "animate-drop-out" : "animate-drop-in"
       )}
     >
-      <p className="text-[13px] font-semibold text-muted-foreground">
-        今日の食事
-      </p>
-      <div className="mt-2 flex items-center">
-        <div className="flex-1">
-          <p className="text-[24px] font-semibold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
-            {todayCalories}
-            <span className="ml-1 text-[13px] font-normal text-muted-foreground">
-              kcal
-            </span>
+      {/* 上段: 目標チップ + 摂取カロリー */}
+      <div className="flex items-start justify-between px-1">
+        <div className="rounded-[12px] bg-muted px-3.5 py-2">
+          <p className="text-[11px] leading-none text-muted-foreground">目標</p>
+          <p className="mt-1 text-[15px] font-semibold leading-none [font-variant-numeric:tabular-nums]">
+            {hasTarget ? `${targetCalories} kcal` : "未設定"}
           </p>
-          <p className="mt-1.5 text-[12px] text-muted-foreground">摂取</p>
         </div>
-        <div className="h-9 w-px bg-border" />
-        <div className="flex-1 pl-5">
-          {hasTarget ? (
-            <>
-              <p
-                className={cn(
-                  "text-[24px] font-semibold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]",
-                  over && "text-destructive"
-                )}
-              >
-                {Math.abs(remaining!)}
-                <span className="ml-1 text-[13px] font-normal text-muted-foreground">
-                  kcal
-                </span>
-              </p>
-              <p className="mt-1.5 text-[12px] text-muted-foreground">
-                {over ? "目標オーバー" : "あと摂取できる"}
-              </p>
-            </>
-          ) : (
-            <p className="text-[13px] leading-snug text-muted-foreground">
-              設定で目標カロリーを
-              <br />
-              入力すると残りが出ます
-            </p>
-          )}
+        <p className="text-[40px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+          {todayCalories}
+          <span className="ml-1.5 text-[16px] font-normal text-muted-foreground">
+            kcal
+          </span>
+        </p>
+      </div>
+
+      {/* PFCゲージ */}
+      <div className="mt-4 grid grid-cols-3 gap-1">
+        <MacroGauge
+          label="タンパク質"
+          value={proteinG}
+          target={targets?.proteinG ?? null}
+        />
+        <MacroGauge label="脂質" value={fatG} target={targets?.fatG ?? null} />
+        <MacroGauge
+          label="炭水化物"
+          value={carbsG}
+          target={targets?.carbsG ?? null}
+        />
+      </div>
+
+      {!hasTarget && (
+        <p className="mt-3 text-center text-[12px] text-muted-foreground">
+          設定で目標カロリーを入力すると、目標量と達成度が表示されます
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** 270度の円弧ゲージ(PFC 1項目分) */
+function MacroGauge({
+  label,
+  value,
+  target,
+}: {
+  label: string;
+  value: number;
+  target: number | null;
+}) {
+  const fmt = (n: number) => n.toFixed(1);
+  const r = 33;
+  const C = 2 * Math.PI * r;
+  const arcLen = 0.75 * C; // 270度
+  const ratio = target ? Math.min(1, value / target) : 0;
+
+  // 達成度チップ: 80%未満=不足(グレー) / 80〜115%=範囲内(緑) / それ以上=オーバー(赤)
+  const status = (() => {
+    if (!target) return null;
+    const p = value / target;
+    if (p < 0.8)
+      return { cls: "bg-muted text-muted-foreground", text: `-${fmt(target - value)}g`, check: false };
+    if (p <= 1.15)
+      return { cls: "bg-[#34c759]/15 text-[#248a3d]", text: "目標範囲内", check: true };
+    return { cls: "bg-destructive/10 text-destructive", text: `+${fmt(value - target)}g`, check: false };
+  })();
+
+  return (
+    <div className="flex flex-col items-center">
+      <p className="text-[13px] font-semibold">{label}</p>
+      <div className="relative mt-1 h-[78px] w-[78px]">
+        <svg viewBox="0 0 80 80" className="h-full w-full">
+          <g transform="rotate(135 40 40)">
+            <circle
+              cx="40"
+              cy="40"
+              r={r}
+              fill="none"
+              stroke="hsl(240 12% 92%)"
+              strokeWidth="6.5"
+              strokeLinecap="round"
+              strokeDasharray={`${arcLen} ${C}`}
+            />
+            {target != null && ratio > 0 && (
+              <circle
+                cx="40"
+                cy="40"
+                r={r}
+                fill="none"
+                stroke="hsl(210 100% 40%)"
+                strokeWidth="6.5"
+                strokeLinecap="round"
+                strokeDasharray={`${arcLen * ratio} ${C}`}
+                className="transition-[stroke-dasharray] duration-500"
+              />
+            )}
+          </g>
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-[17px] font-bold text-primary [font-variant-numeric:tabular-nums]">
+            {fmt(value)}
+            <span className="text-[11px] font-semibold">g</span>
+          </p>
         </div>
       </div>
-      {ratio != null && (
-        <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              "h-full rounded-full transition-all",
-              over ? "bg-destructive" : "bg-primary"
-            )}
-            style={{ width: `${ratio}%` }}
-          />
-        </div>
+      <p className="text-[12px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+        {target != null ? `/ ${fmt(target)}g` : "—"}
+      </p>
+      {status && (
+        <span
+          className={cn(
+            "mt-1.5 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-[11px] font-medium [font-variant-numeric:tabular-nums]",
+            status.cls
+          )}
+        >
+          {status.check && <Check className="h-3 w-3" strokeWidth={2.5} />}
+          {status.text}
+        </span>
       )}
     </div>
   );
