@@ -636,6 +636,16 @@ export default function Chat() {
           </div>
         )}
 
+        {sendError && (
+          <div
+            role="alert"
+            className="mx-3 mb-2 rounded-[12px] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            <p className="font-semibold">送信エラー: {sendError.message}</p>
+            <p className="mt-1 break-all text-xs">context: {sendError.context}</p>
+          </div>
+        )}
+
         {/* 入力バー(ホームインジケーターを避けるセーフエリア付き) */}
         <div className="px-3 pb-[max(calc(env(safe-area-inset-bottom,0px)+0.5rem),1rem)] pt-1">
           <form
@@ -690,6 +700,27 @@ export default function Chat() {
       </div>
     </div>
   );
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "message" in error) {
+    return String(error.message);
+  }
+  return "送信に失敗しました。もう一度お試しください。";
+}
+
+function getErrorContext(error: unknown): string {
+  if (!error || typeof error !== "object" || !("context" in error)) return "なし";
+  const context = error.context;
+  if (context instanceof Response) {
+    return `${context.status} ${context.statusText || "Edge Function response"}`;
+  }
+  if (typeof context === "string") return context;
+  try {
+    return JSON.stringify(context);
+  } catch {
+    return String(context);
+  }
 }
 
 /** チャット上部に常時表示する今日の食事パネル(目標チップ + 摂取kcal + PFCゲージ) */
