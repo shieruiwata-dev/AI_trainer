@@ -528,9 +528,36 @@ export default function Chat() {
             m.role === "user" ? (
               <UserMessage key={m.id} content={m.content} />
             ) : (
-              <AssistantMessage key={m.id} content={m.content} />
+              <div key={m.id}>
+                <AssistantMessage content={m.content} />
+                {m.uiType && m.uiType !== "text" && (
+                  <ChatActionCard
+                    uiType={m.uiType as UiType}
+                    actionData={m.actionData}
+                    safety={m.safety}
+                    decision={m.decision}
+                    busy={confirmingId !== null}
+                    onConfirm={() => handleDecision(m.id, "confirm")}
+                    onReject={() => handleDecision(m.id, "reject")}
+                  />
+                )}
+                {m.suggestions && m.suggestions.length > 0 && !m.decision && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {m.suggestions.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => send(s)}
+                        className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )
           )}
+
           {streamingText !== null && (
             <AssistantMessage content={streamingText || "…"} streaming />
           )}
