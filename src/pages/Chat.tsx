@@ -12,11 +12,13 @@ import {
   MoreHorizontal,
   Pin,
   PinOff,
+  ImagePlus,
   Plus,
   Scale,
   Search,
   Settings,
   SquarePen,
+  X,
   ThumbsDown,
   ThumbsUp,
   Trash2,
@@ -26,6 +28,15 @@ import {
 import { toast } from "sonner";
 import { useAppData } from "@/hooks/useAppData";
 import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
+import {
+  confirmAction,
+  isEdgeChatAvailable,
+  sendAiChat,
+  type UiType,
+} from "@/lib/aiChat";
+import { ChatActionCard } from "@/components/ChatActionCard";
+import { uploadChatImage } from "@/lib/uploadImage";
+
 import { calcMacroTargets } from "@/lib/nutrition";
 import {
   conversationDateLabel,
@@ -69,6 +80,12 @@ export default function Chat() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [attachedPreview, setAttachedPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sendError, setSendError] = useState<{ message: string; context: string } | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logMenuOpen, setLogMenuOpen] = useState(false);
@@ -92,6 +109,16 @@ export default function Chat() {
   }, [convs]);
 
   useEffect(() => {
+    if (!attachedFile) {
+      setAttachedPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(attachedFile);
+    setAttachedPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [attachedFile]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentId, messages.length, streamingText]);
 
@@ -112,16 +139,20 @@ export default function Chat() {
     );
   }
 
-  async function send(text: string) {
+  async function sendMessage(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || sending) return;
+    const file = attachedFile;
+    if ((!trimmed && !file) || sending) return;
 
+    console.log("chat sendMessage called", { hasMessage: true });
+    setSendError(null);
     setShowSuggestions(false);
     const userMsg: ChatMessage = {
       id: uid(),
       role: "user",
-      content: trimmed,
+      content: trimmed || (file ? "(画像を送信しました)" : ""),
       createdAt: new Date().toISOString(),
+      imageUrl: attachedPreview ?? undefined,
     };
 
     // 会話がなければ最初のメッセージで新規作成(ChatGPTと同じ挙動)
@@ -143,10 +174,46 @@ export default function Chat() {
     }
 
     setInput("");
+    setAttachedFile(null);
     setSending(true);
     setStreamingText("");
 
     try {
+      const imagePath = file ? await uploadChatImage(file) : null;
+
+      if (isEdgeChatAvailable) {
+        // Supabase Edge Function `ai-chat` 経由
+        const res = await sendAiChat({
+          message: trimmed,
+          imagePath,
+          conversationId: conv.difyConversationId ?? null,
+        });
+        const assistantMsg: ChatMessage = {
+          id: uid(),
+          role: "assistant",
+          content: res.message,
+          createdAt: new Date().toISOString(),
+          uiType: res.ui_type,
+          actionData: (res.data as Record<string, unknown> | null) ?? null,
+          suggestions: res.suggestions,
+          safety: res.safety,
+        };
+        setConvs((prev) =>
+          prev.map((c) =>
+            c.id === conv!.id
+              ? {
+                  ...c,
+                  messages: [...c.messages, assistantMsg],
+                  difyConversationId:
+                    res.conversation_id ?? c.difyConversationId,
+                  updatedAt: new Date().toISOString(),
+                }
+              : c
+          )
+        );
+        return;
+      }
+
       const reply = await sendToTrainer(
         trimmed,
         {
@@ -164,6 +231,7 @@ export default function Chat() {
         role: "assistant",
         content: reply.answer,
         createdAt: new Date().toISOString(),
+        uiType: "text",
       };
       setConvs((prev) =>
         prev.map((c) =>
@@ -178,18 +246,71 @@ export default function Chat() {
             : c
         )
       );
+
     } catch (e) {
-      console.error(e);
-      toast.error(
-        e instanceof Error
-          ? e.message
-          : "送信に失敗しました。もう一度お試しください。"
-      );
+      console.error("chat sendMessage catch", e);
+      const message = getErrorMessage(e);
+      const context = getErrorContext(e);
+      setSendError({ message, context });
+      toast.error(message);
     } finally {
       setSending(false);
       setStreamingText(null);
     }
   }
+
+  /** 確認カードの「この内容で記録」/「キャンセル」→ confirm-action */
+  async function handleDecision(
+    messageId: string,
+    decision: "confirm" | "reject"
+  ) {
+    if (!current || confirmingId) return;
+    const msg = current.messages.find((m) => m.id === messageId);
+    const pendingActionId = msg?.actionData?.pending_action_id as
+      | string
+      | undefined;
+    if (!pendingActionId) {
+      toast.error("この提案はすでに無効です");
+      return;
+    }
+
+    setConfirmingId(messageId);
+    try {
+      const res = await confirmAction({
+        pendingActionId,
+        decision,
+        overrides: {},
+      });
+
+      setConvs((prev) =>
+        prev.map((c) =>
+          c.id === current.id
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === messageId ? { ...m, decision } : m
+                ),
+                updatedAt: new Date().toISOString(),
+              }
+            : c
+        )
+      );
+
+      if (decision === "confirm") {
+        // 今日のPFC・履歴を最新化
+        await data.reload();
+        toast.success(res.message ?? "記録しました");
+      } else {
+        toast("キャンセルしました");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "保存に失敗しました");
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
 
   function newChat() {
     const hadConversation = currentId !== null;
@@ -490,11 +611,38 @@ export default function Chat() {
 
           {messages.map((m) =>
             m.role === "user" ? (
-              <UserMessage key={m.id} content={m.content} />
+              <UserMessage key={m.id} content={m.content} imageUrl={m.imageUrl} />
             ) : (
-              <AssistantMessage key={m.id} content={m.content} />
+              <div key={m.id}>
+                <AssistantMessage content={m.content} />
+                {m.uiType && m.uiType !== "text" && (
+                  <ChatActionCard
+                    uiType={m.uiType as UiType}
+                    actionData={m.actionData}
+                    safety={m.safety}
+                    decision={m.decision}
+                    busy={confirmingId !== null}
+                    onConfirm={() => handleDecision(m.id, "confirm")}
+                    onReject={() => handleDecision(m.id, "reject")}
+                  />
+                )}
+                {m.suggestions && m.suggestions.length > 0 && !m.decision && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {m.suggestions.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => void sendMessage(s)}
+                        className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )
           )}
+
           {streamingText !== null && (
             <AssistantMessage content={streamingText || "…"} streaming />
           )}
@@ -507,12 +655,43 @@ export default function Chat() {
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
-                onClick={() => send(s)}
+                onClick={() => void sendMessage(s)}
                 className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
               >
                 {s}
               </button>
             ))}
+          </div>
+        )}
+
+        {sendError && (
+          <div
+            role="alert"
+            className="mx-3 mb-2 rounded-[12px] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            <p className="font-semibold">送信エラー: {sendError.message}</p>
+            <p className="mt-1 break-all text-xs">context: {sendError.context}</p>
+          </div>
+        )}
+
+        {/* 添付画像プレビュー */}
+        {attachedPreview && (
+          <div className="px-4 pb-2">
+            <div className="relative inline-block">
+              <img
+                src={attachedPreview}
+                alt="添付画像のプレビュー"
+                className="h-20 w-20 rounded-[12px] object-cover"
+              />
+              <button
+                type="button"
+                aria-label="添付を取り消す"
+                onClick={() => setAttachedFile(null)}
+                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -522,9 +701,36 @@ export default function Chat() {
             className="flex items-end gap-1 rounded-[28px] bg-muted px-2 py-1.5"
             onSubmit={(e) => {
               e.preventDefault();
-              send(input);
+              void sendMessage(input);
             }}
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (!f) return;
+                if (!f.type.startsWith("image/")) {
+                  toast.error("画像ファイルを選択してください");
+                  return;
+                }
+                if (f.size > 8 * 1024 * 1024) {
+                  toast.error("画像は8MB以下にしてください");
+                  return;
+                }
+                setAttachedFile(f);
+              }}
+            />
+            <IconButton
+              label="画像を添付"
+              onClick={() => fileInputRef.current?.click()}
+              className="mb-0.5"
+            >
+              <ImagePlus className="h-6 w-6" strokeWidth={1.8} />
+            </IconButton>
             <IconButton
               label="質問の候補"
               onClick={() => setShowSuggestions((v) => !v)}
@@ -542,7 +748,7 @@ export default function Chat() {
                   !e.nativeEvent.isComposing
                 ) {
                   e.preventDefault();
-                  send(input);
+                  void sendMessage(input);
                 }
               }}
               placeholder="トレーナーに質問する"
@@ -557,8 +763,9 @@ export default function Chat() {
               <Mic className="h-6 w-6" strokeWidth={1.8} />
             </IconButton>
             <button
-              type="submit"
-              disabled={sending || !input.trim()}
+              type="button"
+              onClick={() => void sendMessage(input)}
+              disabled={sending || (!input.trim() && !attachedFile)}
               aria-label="送信"
               className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-40"
             >
@@ -569,6 +776,27 @@ export default function Chat() {
       </div>
     </div>
   );
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "message" in error) {
+    return String(error.message);
+  }
+  return "送信に失敗しました。もう一度お試しください。";
+}
+
+function getErrorContext(error: unknown): string {
+  if (!error || typeof error !== "object" || !("context" in error)) return "なし";
+  const context = error.context;
+  if (context instanceof Response) {
+    return `${context.status} ${context.statusText || "Edge Function response"}`;
+  }
+  if (typeof context === "string") return context;
+  try {
+    return JSON.stringify(context);
+  } catch {
+    return String(context);
+  }
 }
 
 /** チャット上部に常時表示する今日の食事パネル(目標チップ + 摂取kcal + PFCゲージ) */
@@ -797,12 +1025,27 @@ function MenuItem({
 }
 
 /** 自分の発言: グレーの丸いバブル(右寄せ) */
-function UserMessage({ content }: { content: string }) {
+function UserMessage({
+  content,
+  imageUrl,
+}: {
+  content: string;
+  imageUrl?: string;
+}) {
   return (
-    <div className="flex animate-fade-in justify-end">
-      <div className="max-w-[80%] whitespace-pre-wrap rounded-[22px] bg-muted px-5 py-2.5 text-[17px] leading-[1.5] text-foreground">
-        {content}
-      </div>
+    <div className="flex animate-fade-in flex-col items-end gap-1.5">
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt="送信した画像"
+          className="max-h-52 max-w-[70%] rounded-[18px] object-cover"
+        />
+      )}
+      {content && (
+        <div className="max-w-[80%] whitespace-pre-wrap rounded-[22px] bg-muted px-5 py-2.5 text-[17px] leading-[1.5] text-foreground">
+          {content}
+        </div>
+      )}
     </div>
   );
 }
