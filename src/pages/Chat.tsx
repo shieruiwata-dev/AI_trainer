@@ -26,6 +26,14 @@ import {
 import { toast } from "sonner";
 import { useAppData } from "@/hooks/useAppData";
 import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
+import {
+  confirmAction,
+  isEdgeChatAvailable,
+  sendAiChat,
+  type UiType,
+} from "@/lib/aiChat";
+import { ChatActionCard } from "@/components/ChatActionCard";
+
 import { calcMacroTargets } from "@/lib/nutrition";
 import {
   conversationToText,
