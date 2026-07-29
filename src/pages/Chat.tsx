@@ -142,6 +142,39 @@ export default function Chat() {
     setStreamingText("");
 
     try {
+      if (isEdgeChatAvailable) {
+        // Supabase Edge Function `ai-chat` 経由
+        const res = await sendAiChat({
+          message: trimmed,
+          imagePath: null,
+          conversationId: conv.difyConversationId ?? null,
+        });
+        const assistantMsg: ChatMessage = {
+          id: uid(),
+          role: "assistant",
+          content: res.message,
+          createdAt: new Date().toISOString(),
+          uiType: res.ui_type,
+          actionData: (res.data as Record<string, unknown> | null) ?? null,
+          suggestions: res.suggestions,
+          safety: res.safety,
+        };
+        setConvs((prev) =>
+          prev.map((c) =>
+            c.id === conv!.id
+              ? {
+                  ...c,
+                  messages: [...c.messages, assistantMsg],
+                  difyConversationId:
+                    res.conversation_id ?? c.difyConversationId,
+                  updatedAt: new Date().toISOString(),
+                }
+              : c
+          )
+        );
+        return;
+      }
+
       const reply = await sendToTrainer(
         trimmed,
         {
@@ -159,6 +192,7 @@ export default function Chat() {
         role: "assistant",
         content: reply.answer,
         createdAt: new Date().toISOString(),
+        uiType: "text",
       };
       setConvs((prev) =>
         prev.map((c) =>
@@ -173,6 +207,7 @@ export default function Chat() {
             : c
         )
       );
+
     } catch (e) {
       console.error(e);
       toast.error(
