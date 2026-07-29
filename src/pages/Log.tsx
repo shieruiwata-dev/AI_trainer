@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -28,8 +29,16 @@ import {
 
 const ACTION_BLUE = "#0066cc";
 
+const TAB_VALUES = ["weight", "meal", "workout"] as const;
+
 export default function Log() {
   const data = useAppData();
+  // サイドバーのサブメニュー(/log?tab=meal 等)から直接タブを開けるようにする
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const tab = TAB_VALUES.includes(tabParam as (typeof TAB_VALUES)[number])
+    ? (tabParam as (typeof TAB_VALUES)[number])
+    : "weight";
 
   return (
     <div className="animate-fade-in space-y-5 p-4 pb-[max(calc(env(safe-area-inset-bottom,0px)+1rem),1.5rem)] pt-[max(calc(env(safe-area-inset-top,0px)+0.5rem),0.75rem)]">
@@ -56,7 +65,10 @@ export default function Log() {
         />
       </div>
 
-      <Tabs defaultValue="weight">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })}
+      >
         <TabsList>
           <TabsTrigger value="weight">体重</TabsTrigger>
           <TabsTrigger value="meal">食事</TabsTrigger>

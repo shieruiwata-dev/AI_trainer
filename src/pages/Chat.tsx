@@ -3,14 +3,17 @@ import { Link } from "react-router-dom";
 import {
   ArrowUp,
   Check,
+  ChevronDown,
   ClipboardList,
   Copy,
+  Dumbbell,
   Menu,
   Mic,
   MoreHorizontal,
   Pin,
   PinOff,
   Plus,
+  Scale,
   Search,
   Settings,
   SquarePen,
@@ -18,6 +21,7 @@ import {
   ThumbsUp,
   Trash2,
   Upload,
+  Utensils,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppData } from "@/hooks/useAppData";
@@ -66,6 +70,7 @@ export default function Chat() {
   const [sending, setSending] = useState(false);
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [logMenuOpen, setLogMenuOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const menuPopover = useAnimatedPresence(menuOpen, 150);
@@ -265,11 +270,49 @@ export default function Chat() {
         )}
 
         <nav className="mt-4 space-y-0.5 px-3">
-          <SidebarLink
-            to="/log"
-            icon={<ClipboardList className="h-[22px] w-[22px]" strokeWidth={1.8} />}
-            label="記録"
-          />
+          {/* 記録(タップで食事・筋トレ・体重のタブを展開) */}
+          <button
+            onClick={() => setLogMenuOpen((v) => !v)}
+            className="flex w-full items-center gap-3.5 rounded-[14px] px-3 py-3 text-[17px] transition-colors hover:bg-muted/60"
+          >
+            <ClipboardList className="h-[22px] w-[22px]" strokeWidth={1.8} />
+            <span className="flex-1 text-left">記録</span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform duration-300 ease-ios",
+                logMenuOpen && "rotate-180"
+              )}
+              strokeWidth={2}
+            />
+          </button>
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows] duration-300 ease-ios",
+              logMenuOpen
+                ? "[grid-template-rows:1fr]"
+                : "[grid-template-rows:0fr]"
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="my-0.5 ml-5 space-y-0.5 border-l pl-2.5">
+                <SidebarSubLink
+                  to="/log?tab=meal"
+                  icon={<Utensils className="h-[18px] w-[18px]" strokeWidth={1.8} />}
+                  label="食事"
+                />
+                <SidebarSubLink
+                  to="/log?tab=workout"
+                  icon={<Dumbbell className="h-[18px] w-[18px]" strokeWidth={1.8} />}
+                  label="筋トレ"
+                />
+                <SidebarSubLink
+                  to="/log?tab=weight"
+                  icon={<Scale className="h-[18px] w-[18px]" strokeWidth={1.8} />}
+                  label="体重"
+                />
+              </div>
+            </div>
+          </div>
         </nav>
 
         <p className="mt-5 px-5 text-[14px] font-semibold text-foreground">
@@ -689,7 +732,7 @@ function IconButton({
   );
 }
 
-function SidebarLink({
+function SidebarSubLink({
   to,
   icon,
   label,
@@ -701,9 +744,9 @@ function SidebarLink({
   return (
     <Link
       to={to}
-      className="flex items-center gap-3.5 rounded-[14px] px-3 py-3 text-[17px] transition-colors hover:bg-muted/60"
+      className="flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-[16px] text-foreground transition-colors hover:bg-muted/60"
     >
-      {icon}
+      <span className="text-muted-foreground">{icon}</span>
       {label}
     </Link>
   );
