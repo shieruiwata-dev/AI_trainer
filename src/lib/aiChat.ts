@@ -247,6 +247,24 @@ export function formatValue(key: string, value: unknown): string {
   return `${value}${PAYLOAD_UNITS[key] ?? ""}`;
 }
 
+/** ISO日時を「YYYY年MM月DD日 HH時MM分」形式に変換 */
+export function formatJapaneseDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${map.year}年${map.month}月${map.day}日 ${map.hour}時${map.minute}分`;
+}
+
+
 /** 内部キー / オブジェクトを除外した、表示可能な行だけを返す */
 export function payloadRows(
   payload?: Record<string, unknown> | null,

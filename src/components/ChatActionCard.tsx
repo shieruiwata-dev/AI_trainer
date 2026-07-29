@@ -15,6 +15,7 @@ import {
   isConfirmationUi,
   labelFor,
   formatValue,
+  formatJapaneseDateTime,
   payloadRows,
   pickArray,
   pickNumber,
@@ -185,7 +186,10 @@ function WeightBody({ p }: { p: Record<string, unknown> }) {
   const note = pickString(p, "note", "notes", "memo");
   return (
     <dl className="mt-3 space-y-1.5">
-      <Row label="測定日" value={date ?? ""} />
+      <Row
+        label="測定日"
+        value={date ? formatJapaneseDateTime(date) : ""}
+      />
       <Row label="体重" value={weight !== undefined ? `${weight}kg` : ""} />
       <Row label="体脂肪率" value={fat !== undefined ? `${fat}%` : ""} />
       <Row label="メモ" value={note ?? ""} />
