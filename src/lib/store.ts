@@ -281,3 +281,8 @@ async function initStore(): Promise<DataStore> {
     return new LocalStore();
   }
 }
+
+/** ログイン/ログアウト後にストアのキャッシュを破棄して作り直させる */
+export function resetStore(): void {
+  storePromise = null;
+}
