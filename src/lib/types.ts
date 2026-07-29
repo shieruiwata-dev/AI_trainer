@@ -7,6 +7,10 @@ export interface Profile {
   startWeightKg: number | null;
   targetWeightKg: number | null;
   targetCalories: number | null;
+  /** サーバー(goalsテーブル)が算出したPFC目標。無ければフロントで概算する */
+  targetProteinG?: number | null;
+  targetFatG?: number | null;
+  targetCarbsG?: number | null;
 }
 
 export interface WeightLog {

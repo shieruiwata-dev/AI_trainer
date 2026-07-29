@@ -47,7 +47,7 @@ import {
   titleFrom,
   type Conversation,
 } from "@/lib/conversations";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, Profile } from "@/lib/types";
 import { uid, cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
@@ -179,7 +179,9 @@ export default function Chat() {
     setStreamingText("");
 
     try {
-      const imagePath = file ? await uploadChatImage(file) : null;
+      // デモビルドではアップロード先が無いためスキップ(プレビュー表示のみ)
+      const imagePath =
+        file && isEdgeChatAvailable ? await uploadChatImage(file) : null;
 
       if (isEdgeChatAvailable) {
         // Supabase Edge Function `ai-chat` 経由
@@ -536,7 +538,7 @@ export default function Chat() {
         <div className="px-3 pb-1">
           <CaloriesPanel
             todayCalories={data.todayCalories}
-            targetCalories={data.profile.targetCalories}
+            profile={data.profile}
             proteinG={data.todayProteinG}
             fatG={data.todayFatG}
             carbsG={data.todayCarbsG}
@@ -802,19 +804,29 @@ function getErrorContext(error: unknown): string {
 /** チャット上部に常時表示する今日の食事パネル(目標チップ + 摂取kcal + PFCゲージ) */
 function CaloriesPanel({
   todayCalories,
-  targetCalories,
+  profile,
   proteinG,
   fatG,
   carbsG,
 }: {
   todayCalories: number;
-  targetCalories: number | null;
+  profile: Profile;
   proteinG: number;
   fatG: number;
   carbsG: number;
 }) {
+  const targetCalories = profile.targetCalories;
   const hasTarget = targetCalories != null && targetCalories > 0;
-  const targets = hasTarget ? calcMacroTargets(targetCalories) : null;
+  // PFC目標: サーバー(goals)の算出値を優先し、無ければ目標カロリーから概算
+  const fallback = hasTarget ? calcMacroTargets(targetCalories) : null;
+  const targets =
+    hasTarget || profile.targetProteinG != null
+      ? {
+          proteinG: profile.targetProteinG ?? fallback?.proteinG ?? null,
+          fatG: profile.targetFatG ?? fallback?.fatG ?? null,
+          carbsG: profile.targetCarbsG ?? fallback?.carbsG ?? null,
+        }
+      : null;
 
   return (
     <div className="rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5">

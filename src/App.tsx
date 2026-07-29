@@ -14,19 +14,20 @@ import Settings from "@/pages/Settings";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
 import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabaseConfig";
 
 // 単一HTML(Artifactプレビュー等)ではパスが使えないためハッシュルーティングに切替
 const Router = import.meta.env.VITE_USE_HASH_ROUTER ? HashRouter : BrowserRouter;
 
-/** セッションが無ければログイン画面へ誘導する */
+/** セッションが無ければログイン画面へ誘導する(デモビルドでは認証をスキップ) */
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [state, setState] = useState<"loading" | "in" | "out">(
-    supabase ? "loading" : "in"
+    isSupabaseConfigured ? "loading" : "in"
   );
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!isSupabaseConfigured) return;
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       setState(session ? "in" : "out");
     });

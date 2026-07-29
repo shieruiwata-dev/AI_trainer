@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import { uid } from "@/lib/utils";
+import { isSupabaseConfigured } from "@/lib/supabaseConfig";
+import { todayStr, uid } from "@/lib/utils";
 import {
   DEFAULT_PROFILE,
   type MealLog,
@@ -116,8 +117,20 @@ class LocalStore implements DataStore {
 }
 
 // ---------- Supabase 実装 ----------
-// テーブル定義は supabase/migrations/ を参照。匿名認証(Anonymous Sign-ins)を
-// Supabase ダッシュボードで有効にしておくこと。
+// バックエンド側スキーマ(src/integrations/supabase/types.ts 参照)への対応:
+//   プロフィール → profiles(表示名・身長・現在体重)+ goals(目標タイプ・目標値・PFC目標)
+//   体重         → body_measurements
+//   食事         → meals
+//   筋トレ       → workout_sessions
+// AI(ai-chat / confirm-action)も同じテーブルに書き込むため、記録が一元化される。
+
+/** タイムスタンプ文字列をローカル日付(YYYY-MM-DD)に変換 */
+function toLocalDate(iso: string): string {
+  return todayStr(new Date(iso));
+}
+
+const WORKOUT_CATEGORIES = ["strength", "cardio", "stretch"] as const;
+const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 
 class SupabaseStore implements DataStore {
   readonly mode = "supabase" as const;
@@ -128,73 +141,125 @@ class SupabaseStore implements DataStore {
   }
 
   async getProfile(): Promise<Profile> {
-    const { data } = await this.db
-      .from("profiles")
-      .select("*")
-      .eq("user_id", this.userId)
-      .maybeSingle();
-    if (!data) return DEFAULT_PROFILE;
+    const [{ data: prof }, { data: goal }] = await Promise.all([
+      this.db
+        .from("profiles")
+        .select("*")
+        .eq("user_id", this.userId)
+        .maybeSingle(),
+      this.db
+        .from("goals")
+        .select("*")
+        .eq("user_id", this.userId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (!prof && !goal) return DEFAULT_PROFILE;
+    const goalType = (["diet", "bulk", "maintain"] as const).includes(
+      goal?.goal_type as "diet"
+    )
+      ? (goal!.goal_type as Profile["goalType"])
+      : DEFAULT_PROFILE.goalType;
     return {
-      name: data.name ?? "",
-      goalType: data.goal_type ?? "diet",
-      heightCm: data.height_cm,
-      startWeightKg: data.start_weight_kg,
-      targetWeightKg: data.target_weight_kg,
-      targetCalories: data.target_calories,
+      name: prof?.display_name ?? "",
+      goalType,
+      heightCm: prof?.height_cm ?? null,
+      // 開始体重の専用列は無いため profiles.current_weight_kg を利用
+      startWeightKg: prof?.current_weight_kg ?? null,
+      targetWeightKg: goal?.target_weight_kg ?? null,
+      targetCalories: goal?.target_calories ?? null,
+      targetProteinG: goal?.target_protein_g ?? null,
+      targetFatG: goal?.target_fat_g ?? null,
+      targetCarbsG: goal?.target_carbs_g ?? null,
     };
   }
 
   async saveProfile(p: Profile): Promise<void> {
-    const { error } = await this.db.from("profiles").upsert({
+    const { error: profError } = await this.db.from("profiles").upsert({
       user_id: this.userId,
-      name: p.name,
-      goal_type: p.goalType,
+      display_name: p.name,
       height_cm: p.heightCm,
-      start_weight_kg: p.startWeightKg,
+      current_weight_kg: p.startWeightKg,
+    });
+    if (profError) throw profError;
+
+    // アクティブな goal を更新、無ければ作成
+    const { data: goal } = await this.db
+      .from("goals")
+      .select("id")
+      .eq("user_id", this.userId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const goalValues = {
+      goal_type: p.goalType,
       target_weight_kg: p.targetWeightKg,
       target_calories: p.targetCalories,
-    });
-    if (error) throw error;
+    };
+    if (goal) {
+      const { error } = await this.db
+        .from("goals")
+        .update(goalValues)
+        .eq("id", goal.id);
+      if (error) throw error;
+    } else {
+      const { error } = await this.db.from("goals").insert({
+        user_id: this.userId,
+        is_active: true,
+        ...goalValues,
+      });
+      if (error) throw error;
+    }
   }
 
   async listWeightLogs(): Promise<WeightLog[]> {
     const { data, error } = await this.db
-      .from("weight_logs")
+      .from("body_measurements")
       .select("*")
-      .order("date", { ascending: true });
+      .order("measured_at", { ascending: true });
     if (error) throw error;
-    return (data ?? []).map((r) => ({
-      id: r.id,
-      date: r.date,
-      weightKg: Number(r.weight_kg),
-      note: r.note ?? undefined,
-    }));
+    return (data ?? [])
+      .filter((r) => r.weight_kg != null)
+      .map((r) => ({
+        id: r.id,
+        date: toLocalDate(r.measured_at),
+        weightKg: Number(r.weight_kg),
+        note: r.note ?? undefined,
+      }));
   }
   async addWeightLog(log: Omit<WeightLog, "id">): Promise<void> {
-    const { error } = await this.db.from("weight_logs").insert({
+    const { error } = await this.db.from("body_measurements").insert({
       user_id: this.userId,
-      date: log.date,
+      measured_at: `${log.date}T12:00:00`,
       weight_kg: log.weightKg,
       note: log.note ?? null,
     });
     if (error) throw error;
   }
   async deleteWeightLog(id: string): Promise<void> {
-    const { error } = await this.db.from("weight_logs").delete().eq("id", id);
+    const { error } = await this.db
+      .from("body_measurements")
+      .delete()
+      .eq("id", id);
     if (error) throw error;
   }
 
   async listMealLogs(): Promise<MealLog[]> {
     const { data, error } = await this.db
-      .from("meal_logs")
+      .from("meals")
       .select("*")
-      .order("date", { ascending: false });
+      .order("eaten_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((r) => ({
       id: r.id,
-      date: r.date,
-      mealType: r.meal_type,
-      name: r.name,
+      date: toLocalDate(r.eaten_at),
+      mealType: MEAL_TYPES.includes(r.meal_type as "snack")
+        ? (r.meal_type as MealLog["mealType"])
+        : "snack",
+      name: r.raw_text ?? r.estimation_note ?? "食事",
       calories: Number(r.calories),
       proteinG: r.protein_g,
       fatG: r.fat_g,
@@ -202,51 +267,58 @@ class SupabaseStore implements DataStore {
     }));
   }
   async addMealLog(log: Omit<MealLog, "id">): Promise<void> {
-    const { error } = await this.db.from("meal_logs").insert({
+    const { error } = await this.db.from("meals").insert({
       user_id: this.userId,
-      date: log.date,
+      eaten_at: `${log.date}T12:00:00`,
       meal_type: log.mealType,
-      name: log.name,
+      raw_text: log.name,
+      source_type: "manual",
       calories: log.calories,
-      protein_g: log.proteinG ?? null,
-      fat_g: log.fatG ?? null,
-      carbs_g: log.carbsG ?? null,
+      protein_g: log.proteinG ?? 0,
+      fat_g: log.fatG ?? 0,
+      carbs_g: log.carbsG ?? 0,
     });
     if (error) throw error;
   }
   async deleteMealLog(id: string): Promise<void> {
-    const { error } = await this.db.from("meal_logs").delete().eq("id", id);
+    const { error } = await this.db.from("meals").delete().eq("id", id);
     if (error) throw error;
   }
 
   async listWorkoutLogs(): Promise<WorkoutLog[]> {
     const { data, error } = await this.db
-      .from("workout_logs")
+      .from("workout_sessions")
       .select("*")
-      .order("date", { ascending: false });
+      .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map((r) => ({
       id: r.id,
-      date: r.date,
-      category: r.category,
-      name: r.name,
-      detail: r.detail ?? undefined,
-      note: r.note ?? undefined,
+      date: toLocalDate(r.started_at ?? r.created_at),
+      category: WORKOUT_CATEGORIES.includes(r.focus_area as "strength")
+        ? (r.focus_area as WorkoutLog["category"])
+        : "strength",
+      name: r.title ?? "トレーニング",
+      detail:
+        r.estimated_minutes != null ? `${r.estimated_minutes}分` : undefined,
+      note: r.condition_note ?? undefined,
     }));
   }
   async addWorkoutLog(log: Omit<WorkoutLog, "id">): Promise<void> {
-    const { error } = await this.db.from("workout_logs").insert({
+    const { error } = await this.db.from("workout_sessions").insert({
       user_id: this.userId,
-      date: log.date,
-      category: log.category,
-      name: log.name,
-      detail: log.detail ?? null,
-      note: log.note ?? null,
+      title: log.name,
+      focus_area: log.category,
+      status: "completed",
+      started_at: `${log.date}T12:00:00`,
+      condition_note: log.note ?? null,
     });
     if (error) throw error;
   }
   async deleteWorkoutLog(id: string): Promise<void> {
-    const { error } = await this.db.from("workout_logs").delete().eq("id", id);
+    const { error } = await this.db
+      .from("workout_sessions")
+      .delete()
+      .eq("id", id);
     if (error) throw error;
   }
 }
@@ -263,7 +335,8 @@ export function getStore(): Promise<DataStore> {
 }
 
 async function initStore(): Promise<DataStore> {
-  if (!supabase) return new LocalStore();
+  // デモビルド(VITE_FORCE_DEMO)では常にローカル保存
+  if (!isSupabaseConfigured || !supabase) return new LocalStore();
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user.id;

@@ -1,6 +1,8 @@
 // ビルド成果物(dist/)の JS と CSS を1枚の HTML に埋め込むスクリプト。
 // Artifact プレビューなど、単一ファイルでアプリを配布したいときに使う。
-//   VITE_USE_HASH_ROUTER=1 npm run build && node scripts/build-single-html.mjs <出力先>
+//   VITE_SINGLE_FILE=1 VITE_USE_HASH_ROUTER=1 VITE_FORCE_DEMO=1 npm run build \
+//     && node scripts/build-single-html.mjs <出力先>
+// VITE_FORCE_DEMO=1: 外部通信できないプレビュー環境向けに認証スキップ+デモ応答+ローカル保存
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
