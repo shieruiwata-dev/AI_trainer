@@ -44,6 +44,16 @@ export interface WorkoutLog {
   note?: string;
 }
 
+/** 今日のセット記録(workout_sets 由来)。上部スワイプカードに表示 */
+export interface WorkoutSetRecord {
+  id: string;
+  exerciseName: string;
+  setNumber: number;
+  weightKg: number | null;
+  reps: number | null;
+  completedAt: string | null;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";

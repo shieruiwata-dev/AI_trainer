@@ -58,3 +58,13 @@
     letter-spacing: -0.02em;
   }
 }
+
+@layer utilities {
+  /* スワイプカルーセル用: スクロールバー非表示 */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

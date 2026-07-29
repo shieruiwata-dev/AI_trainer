@@ -7,6 +7,7 @@ import {
   type Profile,
   type WeightLog,
   type WorkoutLog,
+  type WorkoutSetRecord,
 } from "@/lib/types";
 
 export interface AppData {
@@ -23,6 +24,7 @@ export interface AppData {
   todayCarbsG: number;
   todayMeals: MealLog[];
   todayWorkouts: WorkoutLog[];
+  todayWorkoutSets: WorkoutSetRecord[];
   streakDays: number;
   reload: () => Promise<void>;
   store: DataStore | null;
@@ -51,20 +53,25 @@ export function useAppData(): AppData {
   const [weights, setWeights] = useState<WeightLog[]>([]);
   const [meals, setMeals] = useState<MealLog[]>([]);
   const [workouts, setWorkouts] = useState<WorkoutLog[]>([]);
+  const [todayWorkoutSets, setTodayWorkoutSets] = useState<WorkoutSetRecord[]>(
+    []
+  );
 
   const reload = useCallback(async () => {
     const s = await getStore();
     setStore(s);
-    const [p, w, m, wo] = await Promise.all([
+    const [p, w, m, wo, sets] = await Promise.all([
       s.getProfile(),
       s.listWeightLogs(),
       s.listMealLogs(),
       s.listWorkoutLogs(),
+      s.listTodayWorkoutSets(),
     ]);
     setProfile(p);
     setWeights(w);
     setMeals(m);
     setWorkouts(wo);
+    setTodayWorkoutSets(sets);
     setLoading(false);
   }, []);
 
@@ -115,6 +122,7 @@ export function useAppData(): AppData {
     weights,
     meals,
     workouts,
+    todayWorkoutSets,
     ...derived,
     reload,
     store,

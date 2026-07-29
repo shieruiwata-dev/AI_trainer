@@ -7,6 +7,7 @@ import {
   type Profile,
   type WeightLog,
   type WorkoutLog,
+  type WorkoutSetRecord,
 } from "@/lib/types";
 
 /**
@@ -30,6 +31,9 @@ export interface DataStore {
   listWorkoutLogs(): Promise<WorkoutLog[]>;
   addWorkoutLog(log: Omit<WorkoutLog, "id">): Promise<void>;
   deleteWorkoutLog(id: string): Promise<void>;
+
+  /** 今日のセット記録(AIチャット経由で workout_sets に保存されたもの) */
+  listTodayWorkoutSets(): Promise<WorkoutSetRecord[]>;
 }
 
 // ---------- ローカルストレージ実装 ----------
@@ -113,6 +117,11 @@ class LocalStore implements DataStore {
       LS_KEYS.workouts,
       lsGet<WorkoutLog[]>(LS_KEYS.workouts, []).filter((l) => l.id !== id)
     );
+  }
+
+  async listTodayWorkoutSets(): Promise<WorkoutSetRecord[]> {
+    // セット単位の記録はAI(Supabase)経由のみ。ローカルモードでは空
+    return [];
   }
 }
 
@@ -320,6 +329,26 @@ class SupabaseStore implements DataStore {
       .delete()
       .eq("id", id);
     if (error) throw error;
+  }
+
+  async listTodayWorkoutSets(): Promise<WorkoutSetRecord[]> {
+    const { data, error } = await this.db
+      .from("workout_sets")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(300);
+    if (error) throw error;
+    const today = todayStr();
+    return (data ?? [])
+      .filter((r) => toLocalDate(r.completed_at ?? r.created_at) === today)
+      .map((r) => ({
+        id: r.id,
+        exerciseName: r.exercise_name,
+        setNumber: r.set_number,
+        weightKg: r.actual_weight_kg ?? r.target_weight_kg,
+        reps: r.actual_reps ?? r.target_reps,
+        completedAt: r.completed_at,
+      }));
   }
 }
 

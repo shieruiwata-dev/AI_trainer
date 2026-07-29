@@ -47,7 +47,7 @@ import {
   titleFrom,
   type Conversation,
 } from "@/lib/conversations";
-import type { ChatMessage, Profile } from "@/lib/types";
+import type { ChatMessage, Profile, WorkoutSetRecord } from "@/lib/types";
 import { uid, cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
@@ -543,15 +543,9 @@ export default function Chat() {
           </IconButton>
         </header>
 
-        {/* カロリーパネル(常時表示) */}
+        {/* 上部カード(スワイプで カロリーPFC ⇄ 今日の筋トレ) */}
         <div className="px-3 pb-1">
-          <CaloriesPanel
-            todayCalories={data.todayCalories}
-            profile={data.profile}
-            proteinG={data.todayProteinG}
-            fatG={data.todayFatG}
-            carbsG={data.todayCarbsG}
-          />
+          <TopCards data={data} />
         </div>
 
         {/* ...メニュー(すりガラスのポップオーバー) */}
@@ -816,6 +810,142 @@ function getErrorContext(error: unknown): string {
   }
 }
 
+/** 上部カードのスワイプカルーセル(①カロリーPFC ②今日の筋トレ) */
+function TopCards({ data }: { data: ReturnType<typeof useAppData> }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const firstCardRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(0);
+  // PFCカードの自然な高さを基準にし、筋トレカードは同じ高さ内でスクロール
+  const [cardHeight, setCardHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = firstCardRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setCardHeight(el.offsetHeight));
+    ro.observe(el);
+    setCardHeight(el.offsetHeight);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div>
+      <div
+        ref={scrollRef}
+        onScroll={() => {
+          const el = scrollRef.current;
+          if (!el) return;
+          setPage(Math.round(el.scrollLeft / (el.clientWidth + 12)));
+        }}
+        className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto"
+      >
+        <div ref={firstCardRef} className="w-full shrink-0 snap-center">
+          <CaloriesPanel
+            todayCalories={data.todayCalories}
+            profile={data.profile}
+            proteinG={data.todayProteinG}
+            fatG={data.todayFatG}
+            carbsG={data.todayCarbsG}
+          />
+        </div>
+        <div
+          className="w-full shrink-0 snap-center"
+          style={cardHeight ? { height: cardHeight } : undefined}
+        >
+          <WorkoutSetsCard sets={data.todayWorkoutSets} />
+        </div>
+      </div>
+      {/* ページドット */}
+      <div className="mt-2 flex justify-center gap-1.5">
+        {[0, 1].map((i) => (
+          <span
+            key={i}
+            className={cn(
+              "h-[6px] w-[6px] rounded-full transition-colors",
+              i === page ? "bg-foreground/70" : "bg-muted-foreground/30"
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 今日の筋トレカード: 種目名 + セットごとの重量/レップ数 */
+function WorkoutSetsCard({ sets }: { sets: WorkoutSetRecord[] }) {
+  // 種目ごとにグループ化(出現順を維持)
+  const groups: { name: string; sets: WorkoutSetRecord[] }[] = [];
+  const byName = new Map<string, WorkoutSetRecord[]>();
+  for (const s of sets) {
+    if (!byName.has(s.exerciseName)) {
+      const list: WorkoutSetRecord[] = [];
+      byName.set(s.exerciseName, list);
+      groups.push({ name: s.exerciseName, sets: list });
+    }
+    byName.get(s.exerciseName)!.push(s);
+  }
+
+  return (
+    <div className="flex h-full flex-col rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5">
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[13px] font-semibold text-muted-foreground">
+          今日の筋トレ
+        </p>
+        {sets.length > 0 && (
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary [font-variant-numeric:tabular-nums]">
+            {sets.length}セット
+          </span>
+        )}
+      </div>
+
+      {groups.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center px-3 text-center">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            まだ記録がありません。
+            <br />
+            チャットで「サイドレイズ 10kgを12回」のように
+            <br />
+            伝えるとここに記録されます
+          </p>
+        </div>
+      ) : (
+        <div className="no-scrollbar mt-2 flex-1 space-y-3 overflow-y-auto px-1">
+          {groups.map((g) => (
+            <div key={g.name}>
+              <p className="text-[16px] font-semibold tracking-[-0.02em]">
+                {g.name}
+              </p>
+              <ul>
+                {g.sets.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex items-baseline gap-3 border-b border-[#f0f0f0] py-1.5 last:border-b-0"
+                  >
+                    <span className="w-16 shrink-0 text-[12px] text-muted-foreground">
+                      {s.setNumber}セット目
+                    </span>
+                    <span className="flex-1 text-[16px] font-semibold tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+                      {s.weightKg ?? "—"}
+                      <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">
+                        kg
+                      </span>
+                    </span>
+                    <span className="text-[16px] font-semibold tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+                      {s.reps ?? "—"}
+                      <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">
+                        回
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** チャット上部に常時表示する今日の食事パネル(目標チップ + 摂取kcal + PFCゲージ) */
 function CaloriesPanel({
   todayCalories,
@@ -844,7 +974,7 @@ function CaloriesPanel({
       : null;
 
   return (
-    <div className="rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5">
+    <div className="h-full rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5">
       {/* 上段: 目標チップ(タップで目標設定へ)+ 摂取カロリー */}
       <div className="flex items-start justify-between px-1">
         <Link
@@ -885,11 +1015,6 @@ function CaloriesPanel({
         />
       </div>
 
-      {!hasTarget && (
-        <p className="mt-3 text-center text-[12px] text-muted-foreground">
-          設定で目標カロリーを入力すると、目標量と達成度が表示されます
-        </p>
-      )}
     </div>
   );
 }
