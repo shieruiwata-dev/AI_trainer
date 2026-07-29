@@ -229,6 +229,59 @@ export default function Chat() {
     }
   }
 
+  /** 確認カードの「この内容で記録」/「キャンセル」→ confirm-action */
+  async function handleDecision(
+    messageId: string,
+    decision: "confirm" | "reject"
+  ) {
+    if (!current || confirmingId) return;
+    const msg = current.messages.find((m) => m.id === messageId);
+    const pendingActionId = msg?.actionData?.pending_action_id as
+      | string
+      | undefined;
+    if (!pendingActionId) {
+      toast.error("この提案はすでに無効です");
+      return;
+    }
+
+    setConfirmingId(messageId);
+    try {
+      const res = await confirmAction({
+        pendingActionId,
+        decision,
+        overrides: {},
+      });
+
+      setConvs((prev) =>
+        prev.map((c) =>
+          c.id === current.id
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === messageId ? { ...m, decision } : m
+                ),
+                updatedAt: new Date().toISOString(),
+              }
+            : c
+        )
+      );
+
+      if (decision === "confirm") {
+        // 今日のPFC・履歴を最新化
+        await data.reload();
+        toast.success(res.message ?? "記録しました");
+      } else {
+        toast("キャンセルしました");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "保存に失敗しました");
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
+
   function newChat() {
     const hadConversation = currentId !== null;
     setCurrentId(null);
