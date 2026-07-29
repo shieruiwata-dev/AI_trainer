@@ -67,9 +67,7 @@ export default function Chat() {
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [caloriesOpen, setCaloriesOpen] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
-  const caloriesPanel = useAnimatedPresence(caloriesOpen, 200);
   const menuPopover = useAnimatedPresence(menuOpen, 150);
 
   useEffect(() => {
@@ -346,16 +344,6 @@ export default function Chat() {
           <h1 className="flex-1 truncate text-[20px] font-medium tracking-[-0.01em]">
             トレーナー
           </h1>
-          <IconButton
-            label="今日のカロリー"
-            onClick={() => {
-              setMenuOpen(false);
-              setCaloriesOpen((v) => !v);
-            }}
-            className={cn(caloriesOpen && "text-primary")}
-          >
-            <UtensilsIcon className="h-6 w-6" />
-          </IconButton>
           <IconButton label="新しい会話" onClick={newChat}>
             <SquarePen className="h-6 w-6" strokeWidth={1.8} />
           </IconButton>
@@ -373,26 +361,16 @@ export default function Chat() {
           </IconButton>
         </header>
 
-        {/* カロリーパネル(ヘッダー下に少しだけ展開) */}
-        {caloriesPanel.mounted && (
-          <>
-            {!caloriesPanel.closing && (
-              <button
-                aria-label="カロリーパネルを閉じる"
-                className="absolute inset-0 z-40"
-                onClick={() => setCaloriesOpen(false)}
-              />
-            )}
-            <CaloriesPanel
-              closing={caloriesPanel.closing}
-              todayCalories={data.todayCalories}
-              targetCalories={data.profile.targetCalories}
-              proteinG={data.todayProteinG}
-              fatG={data.todayFatG}
-              carbsG={data.todayCarbsG}
-            />
-          </>
-        )}
+        {/* カロリーパネル(常時表示) */}
+        <div className="px-3 pb-1">
+          <CaloriesPanel
+            todayCalories={data.todayCalories}
+            targetCalories={data.profile.targetCalories}
+            proteinG={data.todayProteinG}
+            fatG={data.todayFatG}
+            carbsG={data.todayCarbsG}
+          />
+        </div>
 
         {/* ...メニュー(すりガラスのポップオーバー) */}
         {menuPopover.mounted && current && (
@@ -543,40 +521,14 @@ export default function Chat() {
   );
 }
 
-/** フォーク&スプーンの線画アイコン(参考イラストをイメージ) */
-function UtensilsIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      {/* フォーク */}
-      <path d="M4.5 3v3.5a2.5 2.5 0 0 0 5 0V3" />
-      <path d="M7 3v4" />
-      <path d="M7 9v12" />
-      {/* スプーン */}
-      <ellipse cx="16.5" cy="6.4" rx="3" ry="3.9" />
-      <path d="M16.5 10.3V21" />
-    </svg>
-  );
-}
-
-/** ヘッダー下に展開する今日の食事パネル(目標チップ + 摂取kcal + PFCゲージ) */
+/** チャット上部に常時表示する今日の食事パネル(目標チップ + 摂取kcal + PFCゲージ) */
 function CaloriesPanel({
-  closing,
   todayCalories,
   targetCalories,
   proteinG,
   fatG,
   carbsG,
 }: {
-  closing: boolean;
   todayCalories: number;
   targetCalories: number | null;
   proteinG: number;
@@ -587,12 +539,7 @@ function CaloriesPanel({
   const targets = hasTarget ? calcMacroTargets(targetCalories) : null;
 
   return (
-    <div
-      className={cn(
-        "absolute inset-x-3 top-[calc(env(safe-area-inset-top,0px)+3.75rem)] z-50 origin-top rounded-[18px] border border-black/5 bg-card/95 px-4 pb-4 pt-4 shadow-[0_12px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl",
-        closing ? "animate-drop-out" : "animate-drop-in"
-      )}
-    >
+    <div className="rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5">
       {/* 上段: 目標チップ + 摂取カロリー */}
       <div className="flex items-start justify-between px-1">
         <div className="rounded-[12px] bg-muted px-3.5 py-2">
@@ -601,16 +548,16 @@ function CaloriesPanel({
             {hasTarget ? `${targetCalories} kcal` : "未設定"}
           </p>
         </div>
-        <p className="text-[40px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+        <p className="text-[34px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
           {todayCalories}
-          <span className="ml-1.5 text-[16px] font-normal text-muted-foreground">
+          <span className="ml-1.5 text-[15px] font-normal text-muted-foreground">
             kcal
           </span>
         </p>
       </div>
 
       {/* PFCゲージ */}
-      <div className="mt-4 grid grid-cols-3 gap-1">
+      <div className="mt-3 grid grid-cols-3 gap-1">
         <MacroGauge
           label="タンパク質"
           value={proteinG}
@@ -663,7 +610,7 @@ function MacroGauge({
   return (
     <div className="flex flex-col items-center">
       <p className="text-[13px] font-semibold">{label}</p>
-      <div className="relative mt-1 h-[78px] w-[78px]">
+      <div className="relative mt-1 h-[70px] w-[70px]">
         <svg viewBox="0 0 80 80" className="h-full w-full">
           <g transform="rotate(135 40 40)">
             <circle
@@ -692,9 +639,9 @@ function MacroGauge({
           </g>
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-[17px] font-bold text-primary [font-variant-numeric:tabular-nums]">
+          <p className="text-[15px] font-bold text-primary [font-variant-numeric:tabular-nums]">
             {fmt(value)}
-            <span className="text-[11px] font-semibold">g</span>
+            <span className="text-[10px] font-semibold">g</span>
           </p>
         </div>
       </div>
