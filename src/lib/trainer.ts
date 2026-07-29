@@ -1,4 +1,5 @@
-import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabaseConfig";
 import type { Profile } from "@/lib/types";
 
 /**

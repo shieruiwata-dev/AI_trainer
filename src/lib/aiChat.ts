@@ -1,4 +1,5 @@
-import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabaseConfig";
 
 /**
  * Supabase Edge Functions (`ai-chat` / `confirm-action`) 連携層。
