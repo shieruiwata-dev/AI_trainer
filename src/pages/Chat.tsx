@@ -786,10 +786,14 @@ export default function Chat() {
 }
 
 function getErrorMessage(error: unknown): string {
+  const fallback = "送信に失敗しました。もう一度お試しください。";
   if (error && typeof error === "object" && "message" in error) {
-    return String(error.message);
+    const raw = String(error.message);
+    // 技術的なJSON/スタックトレースはユーザーに見せない
+    const clean = sanitizeAssistantText(raw).split("\n")[0].trim();
+    return clean || fallback;
   }
-  return "送信に失敗しました。もう一度お試しください。";
+  return fallback;
 }
 
 function getErrorContext(error: unknown): string {
