@@ -12,11 +12,13 @@ import {
   MoreHorizontal,
   Pin,
   PinOff,
+  ImagePlus,
   Plus,
   Scale,
   Search,
   Settings,
   SquarePen,
+  X,
   ThumbsDown,
   ThumbsUp,
   Trash2,
@@ -33,6 +35,7 @@ import {
   type UiType,
 } from "@/lib/aiChat";
 import { ChatActionCard } from "@/components/ChatActionCard";
+import { uploadChatImage } from "@/lib/uploadImage";
 
 import { calcMacroTargets } from "@/lib/nutrition";
 import {
@@ -76,6 +79,9 @@ export default function Chat() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [attachedPreview, setAttachedPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [sendError, setSendError] = useState<{ message: string; context: string } | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
@@ -102,6 +108,16 @@ export default function Chat() {
   }, [convs]);
 
   useEffect(() => {
+    if (!attachedFile) {
+      setAttachedPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(attachedFile);
+    setAttachedPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [attachedFile]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentId, messages.length, streamingText]);
 
@@ -120,7 +136,8 @@ export default function Chat() {
 
   async function sendMessage(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || sending) return;
+    const file = attachedFile;
+    if ((!trimmed && !file) || sending) return;
 
     console.log("chat sendMessage called", { hasMessage: true });
     setSendError(null);
@@ -128,8 +145,9 @@ export default function Chat() {
     const userMsg: ChatMessage = {
       id: uid(),
       role: "user",
-      content: trimmed,
+      content: trimmed || (file ? "(画像を送信しました)" : ""),
       createdAt: new Date().toISOString(),
+      imageUrl: attachedPreview ?? undefined,
     };
 
     // 会話がなければ最初のメッセージで新規作成(ChatGPTと同じ挙動)
@@ -151,15 +169,18 @@ export default function Chat() {
     }
 
     setInput("");
+    setAttachedFile(null);
     setSending(true);
     setStreamingText("");
 
     try {
+      const imagePath = file ? await uploadChatImage(file) : null;
+
       if (isEdgeChatAvailable) {
         // Supabase Edge Function `ai-chat` 経由
         const res = await sendAiChat({
           message: trimmed,
-          imagePath: null,
+          imagePath,
           conversationId: conv.difyConversationId ?? null,
         });
         const assistantMsg: ChatMessage = {
@@ -583,7 +604,7 @@ export default function Chat() {
 
           {messages.map((m) =>
             m.role === "user" ? (
-              <UserMessage key={m.id} content={m.content} />
+              <UserMessage key={m.id} content={m.content} imageUrl={m.imageUrl} />
             ) : (
               <div key={m.id}>
                 <AssistantMessage content={m.content} />
@@ -646,6 +667,27 @@ export default function Chat() {
           </div>
         )}
 
+        {/* 添付画像プレビュー */}
+        {attachedPreview && (
+          <div className="px-4 pb-2">
+            <div className="relative inline-block">
+              <img
+                src={attachedPreview}
+                alt="添付画像のプレビュー"
+                className="h-20 w-20 rounded-[12px] object-cover"
+              />
+              <button
+                type="button"
+                aria-label="添付を取り消す"
+                onClick={() => setAttachedFile(null)}
+                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 入力バー(ホームインジケーターを避けるセーフエリア付き) */}
         <div className="px-3 pb-[max(calc(env(safe-area-inset-bottom,0px)+0.5rem),1rem)] pt-1">
           <form
@@ -655,6 +697,33 @@ export default function Chat() {
               void sendMessage(input);
             }}
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (!f) return;
+                if (!f.type.startsWith("image/")) {
+                  toast.error("画像ファイルを選択してください");
+                  return;
+                }
+                if (f.size > 8 * 1024 * 1024) {
+                  toast.error("画像は8MB以下にしてください");
+                  return;
+                }
+                setAttachedFile(f);
+              }}
+            />
+            <IconButton
+              label="画像を添付"
+              onClick={() => fileInputRef.current?.click()}
+              className="mb-0.5"
+            >
+              <ImagePlus className="h-6 w-6" strokeWidth={1.8} />
+            </IconButton>
             <IconButton
               label="質問の候補"
               onClick={() => setShowSuggestions((v) => !v)}
@@ -689,7 +758,7 @@ export default function Chat() {
             <button
               type="button"
               onClick={() => void sendMessage(input)}
-              disabled={sending || !input.trim()}
+              disabled={sending || (!input.trim() && !attachedFile)}
               aria-label="送信"
               className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-40"
             >
@@ -940,12 +1009,27 @@ function MenuItem({
 }
 
 /** 自分の発言: グレーの丸いバブル(右寄せ) */
-function UserMessage({ content }: { content: string }) {
+function UserMessage({
+  content,
+  imageUrl,
+}: {
+  content: string;
+  imageUrl?: string;
+}) {
   return (
-    <div className="flex animate-fade-in justify-end">
-      <div className="max-w-[80%] whitespace-pre-wrap rounded-[22px] bg-muted px-5 py-2.5 text-[17px] leading-[1.5] text-foreground">
-        {content}
-      </div>
+    <div className="flex animate-fade-in flex-col items-end gap-1.5">
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt="送信した画像"
+          className="max-h-52 max-w-[70%] rounded-[18px] object-cover"
+        />
+      )}
+      {content && (
+        <div className="max-w-[80%] whitespace-pre-wrap rounded-[22px] bg-muted px-5 py-2.5 text-[17px] leading-[1.5] text-foreground">
+          {content}
+        </div>
+      )}
     </div>
   );
 }
