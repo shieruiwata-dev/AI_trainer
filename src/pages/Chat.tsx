@@ -109,6 +109,39 @@ export default function Chat() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  // 上部カード → 全画面記録ページ(カードの位置から広がるアニメーション)
+  const [recordPage, setRecordPage] = useState<{
+    type: "meal" | "workout";
+    rect: { top: number; left: number; width: number; height: number };
+  } | null>(null);
+  const [recordClosing, setRecordClosing] = useState(false);
+
+  function openRecordPage(type: "meal" | "workout", cardEl: HTMLElement) {
+    const container = mainRef.current;
+    if (!container) return;
+    const c = container.getBoundingClientRect();
+    const r = cardEl.getBoundingClientRect();
+    setRecordClosing(false);
+    setRecordPage({
+      type,
+      rect: {
+        top: r.top - c.top,
+        left: r.left - c.left,
+        width: r.width,
+        height: r.height,
+      },
+    });
+  }
+
+  function closeRecordPage() {
+    setRecordClosing(true);
+    setTimeout(() => {
+      setRecordPage(null);
+      setRecordClosing(false);
+    }, 360);
+  }
 
   const current = convs.find((c) => c.id === currentId) ?? null;
   const messages = current?.messages ?? [];
@@ -504,6 +537,7 @@ export default function Chat() {
 
       {/* ===== メイン画面(ドロワー時に右へスライド) ===== */}
       <div
+        ref={mainRef}
         className={cn(
           "relative flex h-full flex-col bg-card transition-[transform,border-radius] duration-300 ease-ios",
           drawerOpen &&
@@ -543,10 +577,20 @@ export default function Chat() {
           </IconButton>
         </header>
 
-        {/* 上部カード(スワイプで カロリーPFC ⇄ 今日の筋トレ) */}
+        {/* 上部カード(スワイプで カロリーPFC ⇄ 今日の筋トレ、タップで記録ページへ) */}
         <div className="px-3 pb-1">
-          <TopCards data={data} />
+          <TopCards data={data} onOpen={openRecordPage} />
         </div>
+
+        {/* 全画面の記録ページ(カードから広がる) */}
+        {recordPage && (
+          <RecordPageSheet
+            type={recordPage.type}
+            originRect={recordPage.rect}
+            closing={recordClosing}
+            onClose={closeRecordPage}
+          />
+        )}
 
         {/* ...メニュー(すりガラスのポップオーバー) */}
         {menuPopover.mounted && current && (
@@ -811,7 +855,13 @@ function getErrorContext(error: unknown): string {
 }
 
 /** 上部カードのスワイプカルーセル(①カロリーPFC ②今日の筋トレ) */
-function TopCards({ data }: { data: ReturnType<typeof useAppData> }) {
+function TopCards({
+  data,
+  onOpen,
+}: {
+  data: ReturnType<typeof useAppData>;
+  onOpen: (type: "meal" | "workout", cardEl: HTMLElement) => void;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const firstCardRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
@@ -838,7 +888,13 @@ function TopCards({ data }: { data: ReturnType<typeof useAppData> }) {
         }}
         className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto"
       >
-        <div ref={firstCardRef} className="w-full shrink-0 snap-center">
+        <div
+          ref={firstCardRef}
+          className="w-full shrink-0 cursor-pointer snap-center"
+          role="button"
+          aria-label="食事記録ページを開く"
+          onClick={(e) => onOpen("meal", e.currentTarget)}
+        >
           <CaloriesPanel
             todayCalories={data.todayCalories}
             profile={data.profile}
@@ -848,8 +904,11 @@ function TopCards({ data }: { data: ReturnType<typeof useAppData> }) {
           />
         </div>
         <div
-          className="w-full shrink-0 snap-center"
+          className="w-full shrink-0 cursor-pointer snap-center"
+          role="button"
+          aria-label="筋トレ記録ページを開く"
           style={cardHeight ? { height: cardHeight } : undefined}
+          onClick={(e) => onOpen("workout", e.currentTarget)}
         >
           <WorkoutSetsCard sets={data.todayWorkoutSets} />
         </div>
@@ -865,6 +924,79 @@ function TopCards({ data }: { data: ReturnType<typeof useAppData> }) {
             )}
           />
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 全画面の記録ページ。タップしたカードの位置から全画面へ広がり、
+ * 閉じるときは元のカード位置へ縮んで戻る。
+ * ページの中身はプレースホルダー(内容は今後の指示で実装)。
+ */
+function RecordPageSheet({
+  type,
+  originRect,
+  closing,
+  onClose,
+}: {
+  type: "meal" | "workout";
+  originRect: { top: number; left: number; width: number; height: number };
+  closing: boolean;
+  onClose: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    // マウント直後にカード位置→全画面へのトランジションを開始
+    const id = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setExpanded(true))
+    );
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const isOpen = expanded && !closing;
+  const title = type === "meal" ? "食事記録" : "筋トレ記録";
+
+  return (
+    <div
+      className="absolute z-[60] overflow-hidden border bg-card transition-all duration-[350ms] ease-ios"
+      style={
+        isOpen
+          ? { top: 0, left: 0, width: "100%", height: "100%", borderRadius: 0 }
+          : {
+              top: originRect.top,
+              left: originRect.left,
+              width: originRect.width,
+              height: originRect.height,
+              borderRadius: 18,
+            }
+      }
+    >
+      <div
+        className={cn(
+          "flex h-full flex-col transition-opacity duration-200",
+          isOpen ? "opacity-100" : "opacity-0"
+        )}
+      >
+        {/* ヘッダー */}
+        <header className="flex items-center justify-between px-5 pb-3 pt-[max(calc(env(safe-area-inset-top,0px)+0.75rem),1rem)]">
+          <h2 className="text-[22px] leading-tight">{title}</h2>
+          <button
+            aria-label="閉じる"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-foreground transition-transform active:scale-95"
+          >
+            <X className="h-4 w-4" strokeWidth={2.2} />
+          </button>
+        </header>
+
+        {/* 本文(余白: 内容は今後追加) */}
+        <div className="flex flex-1 items-center justify-center pb-[max(env(safe-area-inset-bottom,0px),1rem)]">
+          <p className="text-[13px] text-muted-foreground/60">
+            (このページの内容はこれから作ります)
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -980,6 +1112,7 @@ function CaloriesPanel({
         <Link
           to="/settings"
           aria-label="目標を設定する"
+          onClick={(e) => e.stopPropagation()}
           className="flex items-center gap-1 rounded-[12px] bg-muted px-3.5 py-2 transition-transform active:scale-95"
         >
           <span>
