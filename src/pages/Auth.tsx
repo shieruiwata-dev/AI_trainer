@@ -54,21 +54,6 @@ export default function Auth() {
     }
   }
 
-  async function continueAsGuest() {
-    if (!supabase) return;
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.signInAnonymously();
-      if (error) throw error;
-      resetStore();
-      navigate("/", { replace: true });
-    } catch {
-      toast.error("ゲストで開始できませんでした");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="flex min-h-full flex-col justify-center px-6 py-12">
       <div className="mb-10 flex flex-col items-center text-center">
@@ -130,14 +115,6 @@ export default function Auth() {
           : "すでにアカウントをお持ちの方はこちら"}
       </button>
 
-      <button
-        type="button"
-        className="mt-8 text-[15px] text-muted-foreground"
-        onClick={continueAsGuest}
-        disabled={busy}
-      >
-        ゲストとして続ける
-      </button>
     </div>
   );
 }
