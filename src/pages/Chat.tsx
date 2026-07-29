@@ -31,6 +31,7 @@ import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
 import {
   confirmAction,
   isEdgeChatAvailable,
+  sanitizeAssistantText,
   sendAiChat,
   type UiType,
 } from "@/lib/aiChat";
@@ -253,6 +254,7 @@ export default function Chat() {
       console.error("chat sendMessage catch", e);
       const message = getErrorMessage(e);
       const context = getErrorContext(e);
+      console.error("ai-chat error context (dev only)", context);
       setSendError({ message, context });
       toast.error(message);
     } finally {
@@ -616,7 +618,7 @@ export default function Chat() {
               <UserMessage key={m.id} content={m.content} imageUrl={m.imageUrl} />
             ) : (
               <div key={m.id}>
-                <AssistantMessage content={m.content} />
+                <AssistantMessage content={sanitizeAssistantText(m.content)} />
                 {m.uiType && m.uiType !== "text" && (
                   <ChatActionCard
                     uiType={m.uiType as UiType}
@@ -626,6 +628,7 @@ export default function Chat() {
                     busy={confirmingId !== null}
                     onConfirm={() => handleDecision(m.id, "confirm")}
                     onReject={() => handleDecision(m.id, "reject")}
+                    onEdit={() => setInput("修正: ")}
                   />
                 )}
                 {m.suggestions && m.suggestions.length > 0 && !m.decision && (
@@ -646,7 +649,10 @@ export default function Chat() {
           )}
 
           {streamingText !== null && (
-            <AssistantMessage content={streamingText || "…"} streaming />
+            <AssistantMessage
+              content={sanitizeAssistantText(streamingText) || "…"}
+              streaming
+            />
           )}
           <div ref={bottomRef} />
         </div>
@@ -671,8 +677,7 @@ export default function Chat() {
             role="alert"
             className="mx-3 mb-2 rounded-[12px] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
-            <p className="font-semibold">送信エラー: {sendError.message}</p>
-            <p className="mt-1 break-all text-xs">context: {sendError.context}</p>
+            <p className="font-semibold">{sendError.message}</p>
           </div>
         )}
 
@@ -781,10 +786,14 @@ export default function Chat() {
 }
 
 function getErrorMessage(error: unknown): string {
+  const fallback = "送信に失敗しました。もう一度お試しください。";
   if (error && typeof error === "object" && "message" in error) {
-    return String(error.message);
+    const raw = String(error.message);
+    // 技術的なJSON/スタックトレースはユーザーに見せない
+    const clean = sanitizeAssistantText(raw).split("\n")[0].trim();
+    return clean || fallback;
   }
-  return "送信に失敗しました。もう一度お試しください。";
+  return fallback;
 }
 
 function getErrorContext(error: unknown): string {

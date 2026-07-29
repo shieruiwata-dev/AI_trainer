@@ -133,6 +133,30 @@ export function isConfirmationUi(ui: UiType): boolean {
   );
 }
 
+/** ユーザーに絶対に見せない内部キー */
+export const HIDDEN_KEYS = new Set([
+  "action",
+  "type",
+  "action_type",
+  "requires_confirmation",
+  "confidence",
+  "source_type",
+  "image_path",
+  "raw_text",
+  "raw",
+  "raw_payload",
+  "dify_message_id",
+  "pending_action_id",
+  "conversation_id",
+  "metadata",
+  "meta",
+  "user_id",
+  "id",
+  "created_at",
+  "updated_at",
+  "extracted",
+]);
+
 /** payload をラベル付きで読みやすく整形 */
 const PAYLOAD_LABELS: Record<string, string> = {
   name: "内容",
@@ -146,15 +170,27 @@ const PAYLOAD_LABELS: Record<string, string> = {
   amount_g: "量",
   quantity: "量",
   weight_kg: "体重",
+  body_fat_percentage: "体脂肪率",
   target_weight_kg: "目標体重",
   target_calories: "目標カロリー",
   goal_type: "目標",
+  deadline: "期限",
+  target_date: "期限",
   date: "日付",
   exercise: "種目",
+  exercise_name: "種目",
   sets: "セット数",
+  set_number: "セット番号",
   reps: "回数",
+  weight: "重量",
+  rpe: "RPE",
+  rest_sec: "休憩",
+  body_part: "部位",
   duration_min: "時間",
+  estimated_minutes: "目安時間",
   note: "メモ",
+  notes: "メモ",
+  memo: "メモ",
 };
 
 const PAYLOAD_UNITS: Record<string, string> = {
@@ -165,9 +201,28 @@ const PAYLOAD_UNITS: Record<string, string> = {
   carbs_g: "g",
   amount_g: "g",
   weight_kg: "kg",
+  body_fat_percentage: "%",
   target_weight_kg: "kg",
   target_calories: "kcal",
   duration_min: "分",
+  estimated_minutes: "分",
+  rest_sec: "秒",
+};
+
+const GOAL_TYPE_TEXT: Record<string, string> = {
+  diet: "ダイエット(減量)",
+  cut: "ダイエット(減量)",
+  lose: "ダイエット(減量)",
+  bulk: "増量(筋肥大)",
+  gain: "増量(筋肥大)",
+  maintain: "現状維持",
+};
+
+const MEAL_TYPE_TEXT: Record<string, string> = {
+  breakfast: "朝食",
+  lunch: "昼食",
+  dinner: "夕食",
+  snack: "間食",
 };
 
 export interface PayloadRow {
@@ -176,33 +231,147 @@ export interface PayloadRow {
   value: string;
 }
 
-export function payloadRows(payload?: Record<string, unknown> | null): PayloadRow[] {
-  if (!payload) return [];
-  return Object.entries(payload)
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
-    .flatMap(([key, value]) => {
-      if (typeof value === "object") {
-        if (Array.isArray(value)) {
-          return [
-            {
-              key,
-              label: PAYLOAD_LABELS[key] ?? key,
-              value: value
-                .map((v) =>
-                  typeof v === "object" ? JSON.stringify(v) : String(v)
-                )
-                .join(" / "),
-            },
-          ];
-        }
-        return payloadRows(value as Record<string, unknown>);
-      }
-      return [
-        {
-          key,
-          label: PAYLOAD_LABELS[key] ?? key,
-          value: `${value}${PAYLOAD_UNITS[key] ?? ""}`,
-        },
-      ];
-    });
+export function labelFor(key: string): string {
+  return PAYLOAD_LABELS[key] ?? key;
 }
+
+export function formatValue(key: string, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+  if (key === "goal_type" && typeof value === "string") {
+    return GOAL_TYPE_TEXT[value] ?? value;
+  }
+  if ((key === "meal_type" || key === "type") && typeof value === "string") {
+    return MEAL_TYPE_TEXT[value] ?? value;
+  }
+  if (typeof value === "boolean") return value ? "あり" : "なし";
+  return `${value}${PAYLOAD_UNITS[key] ?? ""}`;
+}
+
+/** 内部キー / オブジェクトを除外した、表示可能な行だけを返す */
+export function payloadRows(
+  payload?: Record<string, unknown> | null,
+  omit: string[] = []
+): PayloadRow[] {
+  if (!payload) return [];
+  const omitSet = new Set(omit);
+  return Object.entries(payload)
+    .filter(
+      ([k, v]) =>
+        !HIDDEN_KEYS.has(k) &&
+        !omitSet.has(k) &&
+        typeof v !== "object" &&
+        v !== null &&
+        v !== undefined &&
+        v !== ""
+    )
+    .map(([key, value]) => ({
+      key,
+      label: labelFor(key),
+      value: formatValue(key, value),
+    }));
+}
+
+/** action.payload を安全に取り出す(表示には whitelist のみ使う) */
+export function getPayload(
+  actionData?: Record<string, unknown> | null
+): Record<string, unknown> {
+  const action = actionData?.action as
+    | { payload?: Record<string, unknown> }
+    | undefined;
+  const payload = action?.payload;
+  if (payload && typeof payload === "object") return payload;
+  return {};
+}
+
+export function pickString(
+  obj: Record<string, unknown>,
+  ...keys: string[]
+): string | undefined {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+    if (typeof v === "number") return String(v);
+  }
+  return undefined;
+}
+
+export function pickNumber(
+  obj: Record<string, unknown>,
+  ...keys: string[]
+): number | undefined {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {
+      return Number(v);
+    }
+  }
+  return undefined;
+}
+
+export function pickArray(
+  obj: Record<string, unknown>,
+  ...keys: string[]
+): Record<string, unknown>[] {
+  for (const k of keys) {
+    const v = obj[k];
+    if (Array.isArray(v)) {
+      return v.map((item) =>
+        item && typeof item === "object"
+          ? (item as Record<string, unknown>)
+          : { name: String(item) }
+      );
+    }
+  }
+  return [];
+}
+
+export function pickStringList(
+  obj: Record<string, unknown>,
+  ...keys: string[]
+): string[] {
+  for (const k of keys) {
+    const v = obj[k];
+    if (Array.isArray(v)) {
+      return v
+        .map((item) => (typeof item === "string" ? item : ""))
+        .filter(Boolean);
+    }
+    if (typeof v === "string" && v.trim()) return [v.trim()];
+  }
+  return [];
+}
+
+/**
+ * AIの本文にJSONがそのまま入っていた場合、ユーザーには見せない。
+ * message フィールドがあればそれだけを取り出す。
+ */
+export function sanitizeAssistantText(raw: string): string {
+  const text = (raw ?? "").trim();
+  if (!text) return "";
+
+  const stripFence = text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```$/, "")
+    .trim();
+
+  const looksJson =
+    (stripFence.startsWith("{") && stripFence.endsWith("}")) ||
+    (stripFence.startsWith("[") && stripFence.endsWith("]"));
+
+  if (!looksJson) return text;
+
+  try {
+    const parsed = JSON.parse(stripFence);
+    console.log("[chat] raw JSON response (dev only)", parsed);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const msg = (parsed as Record<string, unknown>).message;
+      if (typeof msg === "string") return sanitizeAssistantText(msg);
+    }
+    return "";
+  } catch {
+    console.log("[chat] unparsable JSON-like response hidden from UI");
+    return "";
+  }
+}
+
