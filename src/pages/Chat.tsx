@@ -26,6 +26,14 @@ import {
 import { toast } from "sonner";
 import { useAppData } from "@/hooks/useAppData";
 import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
+import {
+  confirmAction,
+  isEdgeChatAvailable,
+  sendAiChat,
+  type UiType,
+} from "@/lib/aiChat";
+import { ChatActionCard } from "@/components/ChatActionCard";
+
 import { calcMacroTargets } from "@/lib/nutrition";
 import {
   conversationToText,
@@ -68,6 +76,8 @@ export default function Chat() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logMenuOpen, setLogMenuOpen] = useState(false);
@@ -142,6 +152,39 @@ export default function Chat() {
     setStreamingText("");
 
     try {
+      if (isEdgeChatAvailable) {
+        // Supabase Edge Function `ai-chat` 経由
+        const res = await sendAiChat({
+          message: trimmed,
+          imagePath: null,
+          conversationId: conv.difyConversationId ?? null,
+        });
+        const assistantMsg: ChatMessage = {
+          id: uid(),
+          role: "assistant",
+          content: res.message,
+          createdAt: new Date().toISOString(),
+          uiType: res.ui_type,
+          actionData: (res.data as Record<string, unknown> | null) ?? null,
+          suggestions: res.suggestions,
+          safety: res.safety,
+        };
+        setConvs((prev) =>
+          prev.map((c) =>
+            c.id === conv!.id
+              ? {
+                  ...c,
+                  messages: [...c.messages, assistantMsg],
+                  difyConversationId:
+                    res.conversation_id ?? c.difyConversationId,
+                  updatedAt: new Date().toISOString(),
+                }
+              : c
+          )
+        );
+        return;
+      }
+
       const reply = await sendToTrainer(
         trimmed,
         {
@@ -159,6 +202,7 @@ export default function Chat() {
         role: "assistant",
         content: reply.answer,
         createdAt: new Date().toISOString(),
+        uiType: "text",
       };
       setConvs((prev) =>
         prev.map((c) =>
@@ -173,6 +217,7 @@ export default function Chat() {
             : c
         )
       );
+
     } catch (e) {
       console.error(e);
       toast.error(
@@ -185,6 +230,59 @@ export default function Chat() {
       setStreamingText(null);
     }
   }
+
+  /** 確認カードの「この内容で記録」/「キャンセル」→ confirm-action */
+  async function handleDecision(
+    messageId: string,
+    decision: "confirm" | "reject"
+  ) {
+    if (!current || confirmingId) return;
+    const msg = current.messages.find((m) => m.id === messageId);
+    const pendingActionId = msg?.actionData?.pending_action_id as
+      | string
+      | undefined;
+    if (!pendingActionId) {
+      toast.error("この提案はすでに無効です");
+      return;
+    }
+
+    setConfirmingId(messageId);
+    try {
+      const res = await confirmAction({
+        pendingActionId,
+        decision,
+        overrides: {},
+      });
+
+      setConvs((prev) =>
+        prev.map((c) =>
+          c.id === current.id
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === messageId ? { ...m, decision } : m
+                ),
+                updatedAt: new Date().toISOString(),
+              }
+            : c
+        )
+      );
+
+      if (decision === "confirm") {
+        // 今日のPFC・履歴を最新化
+        await data.reload();
+        toast.success(res.message ?? "記録しました");
+      } else {
+        toast("キャンセルしました");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "保存に失敗しました");
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
 
   function newChat() {
     const hadConversation = currentId !== null;
@@ -485,9 +583,36 @@ export default function Chat() {
             m.role === "user" ? (
               <UserMessage key={m.id} content={m.content} />
             ) : (
-              <AssistantMessage key={m.id} content={m.content} />
+              <div key={m.id}>
+                <AssistantMessage content={m.content} />
+                {m.uiType && m.uiType !== "text" && (
+                  <ChatActionCard
+                    uiType={m.uiType as UiType}
+                    actionData={m.actionData}
+                    safety={m.safety}
+                    decision={m.decision}
+                    busy={confirmingId !== null}
+                    onConfirm={() => handleDecision(m.id, "confirm")}
+                    onReject={() => handleDecision(m.id, "reject")}
+                  />
+                )}
+                {m.suggestions && m.suggestions.length > 0 && !m.decision && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {m.suggestions.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => send(s)}
+                        className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )
           )}
+
           {streamingText !== null && (
             <AssistantMessage content={streamingText || "…"} streaming />
           )}
