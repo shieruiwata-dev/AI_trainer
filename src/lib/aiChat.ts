@@ -44,33 +44,43 @@ export async function sendAiChat(params: {
   imagePath?: string | null;
   conversationId?: string | null;
 }): Promise<AiChatResponse> {
-  if (!supabase) throw new Error("バックエンドに接続されていません");
+  try {
+    console.log("ai-chat invoke start", {
+      functionName: "ai-chat",
+      hasMessage: Boolean(params.message.trim()),
+      hasImage: Boolean(params.imagePath),
+    });
+    const { data, error } = await supabase.functions.invoke("ai-chat", {
+      body: {
+        message: params.message.trim(),
+        image_path: params.imagePath ?? null,
+      },
+    });
 
-  const { data, error } = await supabase.functions.invoke("ai-chat", {
-    body: {
-      message: params.message,
-      image_path: params.imagePath ?? null,
-      conversation_id: params.conversationId ?? null,
-    },
-  });
+    console.log("ai-chat invoke completed", { hasData: Boolean(data), error });
+    if (error) {
+      console.error("ai-chat invoke error", error);
+      throw error;
+    }
+    console.log("ai-chat response", data);
+    if (!data) {
+      throw new Error("AIトレーナーから応答がありませんでした");
+    }
 
-  if (error) {
-    throw new Error(error.message || "AIトレーナーに接続できませんでした");
+    const res = data as Partial<AiChatResponse>;
+    return {
+      message: res.message ?? "",
+      ui_type: (res.ui_type as UiType) ?? "text",
+      intent: res.intent,
+      data: (res.data as PendingAction) ?? null,
+      conversation_id: res.conversation_id,
+      suggestions: res.suggestions ?? [],
+      safety: res.safety,
+    };
+  } catch (error) {
+    console.error("ai-chat invoke catch", error);
+    throw error;
   }
-  if (!data) {
-    throw new Error("AIトレーナーから応答がありませんでした");
-  }
-
-  const res = data as Partial<AiChatResponse>;
-  return {
-    message: res.message ?? "",
-    ui_type: (res.ui_type as UiType) ?? "text",
-    intent: res.intent,
-    data: (res.data as PendingAction) ?? null,
-    conversation_id: res.conversation_id,
-    suggestions: res.suggestions ?? [],
-    safety: res.safety,
-  };
 }
 
 export interface ConfirmActionResult {
@@ -85,8 +95,6 @@ export async function confirmAction(params: {
   decision: "confirm" | "reject";
   overrides?: Record<string, unknown>;
 }): Promise<ConfirmActionResult> {
-  if (!supabase) throw new Error("バックエンドに接続されていません");
-
   const { data, error } = await supabase.functions.invoke("confirm-action", {
     body: {
       pending_action_id: params.pendingActionId,

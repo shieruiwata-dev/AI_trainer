@@ -76,6 +76,7 @@ export default function Chat() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<{ message: string; context: string } | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const [streamingText, setStreamingText] = useState<string | null>(null);
@@ -117,10 +118,12 @@ export default function Chat() {
     );
   }
 
-  async function send(text: string) {
+  async function sendMessage(text: string) {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
 
+    console.log("chat sendMessage called", { hasMessage: true });
+    setSendError(null);
     setShowSuggestions(false);
     const userMsg: ChatMessage = {
       id: uid(),
@@ -219,12 +222,11 @@ export default function Chat() {
       );
 
     } catch (e) {
-      console.error(e);
-      toast.error(
-        e instanceof Error
-          ? e.message
-          : "送信に失敗しました。もう一度お試しください。"
-      );
+      console.error("chat sendMessage catch", e);
+      const message = getErrorMessage(e);
+      const context = getErrorContext(e);
+      setSendError({ message, context });
+      toast.error(message);
     } finally {
       setSending(false);
       setStreamingText(null);
@@ -601,7 +603,7 @@ export default function Chat() {
                     {m.suggestions.map((s) => (
                       <button
                         key={s}
-                        onClick={() => send(s)}
+                        onClick={() => void sendMessage(s)}
                         className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
                       >
                         {s}
@@ -625,12 +627,22 @@ export default function Chat() {
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
-                onClick={() => send(s)}
+                onClick={() => void sendMessage(s)}
                 className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
               >
                 {s}
               </button>
             ))}
+          </div>
+        )}
+
+        {sendError && (
+          <div
+            role="alert"
+            className="mx-3 mb-2 rounded-[12px] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            <p className="font-semibold">送信エラー: {sendError.message}</p>
+            <p className="mt-1 break-all text-xs">context: {sendError.context}</p>
           </div>
         )}
 
@@ -640,7 +652,7 @@ export default function Chat() {
             className="flex items-end gap-1 rounded-[28px] bg-muted px-2 py-1.5"
             onSubmit={(e) => {
               e.preventDefault();
-              send(input);
+              void sendMessage(input);
             }}
           >
             <IconButton
@@ -660,7 +672,7 @@ export default function Chat() {
                   !e.nativeEvent.isComposing
                 ) {
                   e.preventDefault();
-                  send(input);
+                  void sendMessage(input);
                 }
               }}
               placeholder="トレーナーに質問する"
@@ -675,7 +687,8 @@ export default function Chat() {
               <Mic className="h-6 w-6" strokeWidth={1.8} />
             </IconButton>
             <button
-              type="submit"
+              type="button"
+              onClick={() => void sendMessage(input)}
               disabled={sending || !input.trim()}
               aria-label="送信"
               className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-40"
@@ -687,6 +700,27 @@ export default function Chat() {
       </div>
     </div>
   );
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "message" in error) {
+    return String(error.message);
+  }
+  return "送信に失敗しました。もう一度お試しください。";
+}
+
+function getErrorContext(error: unknown): string {
+  if (!error || typeof error !== "object" || !("context" in error)) return "なし";
+  const context = error.context;
+  if (context instanceof Response) {
+    return `${context.status} ${context.statusText || "Edge Function response"}`;
+  }
+  if (typeof context === "string") return context;
+  try {
+    return JSON.stringify(context);
+  } catch {
+    return String(context);
+  }
 }
 
 /** チャット上部に常時表示する今日の食事パネル(目標チップ + 摂取kcal + PFCゲージ) */
