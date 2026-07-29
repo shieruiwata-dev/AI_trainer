@@ -41,6 +41,58 @@
 | `workout` | 40_筋トレ対応 | メニュー提案 / セット記録 / フォーム相談 |
 | `question_other` | 50_相談回答 | 一般相談・雑談・**安全対応**(痛み・けが・摂食障害等) |
 
+## 実測サンプル(2026-07-29 テストアカウントで取得)
+
+### ai-chat 応答(挨拶 → text)
+```json
+{
+  "message": "こんにちは、たかおさん。まずは目標を教えてください。減量・増量・体型維持から始められます。",
+  "ui_type": "text",
+  "intent": "other",
+  "data": {
+    "pending_action_id": null,
+    "action": { "type": "none", "requires_confirmation": false, "confidence": 0.98, "payload": {} }
+  },
+  "conversation_id": "dd09f9d2-...",
+  "suggestions": ["減量したい", "筋肉を増やしたい", "体型を維持したい"],
+  "safety": { "level": "normal", "note": "" }
+}
+```
+
+### ai-chat 応答(「バナナを1本食べた」→ meal_confirmation)
+```json
+{
+  "message": "バナナ1本を約93kcalとして推定しました。",
+  "ui_type": "meal_confirmation",
+  "intent": "meal_log",
+  "data": {
+    "pending_action_id": "79e6065d-...",
+    "action": {
+      "type": "meal.create",
+      "requires_confirmation": true,
+      "confidence": 0.9,
+      "payload": {
+        "eaten_at": "2026-07-29T14:05:41+09:00",
+        "meal_type": "snack",
+        "raw_text": "バナナを1本食べた",
+        "items": [{ "name": "バナナ", "amount": 1, "unit": "本" }],
+        "calories": 93, "protein_g": 1, "fat_g": 0, "carbs_g": 23,
+        "estimation_note": "一般的な中サイズのバナナ1本(可食部約100g)として推定しました。"
+      }
+    }
+  },
+  "conversation_id": "dd09f9d2-...",
+  "suggestions": ["この内容で記録", "量を修正", "食品を追加"],
+  "safety": { "level": "normal", "note": "" }
+}
+```
+
+### confirm-action 応答(reject)
+```json
+{ "status": "rejected", "pending_action_id": "79e6065d-..." }
+```
+※ `message` フィールドは返らない(フロントはフォールバック文言を表示する)。
+
 ## 応答JSONの共通形式
 
 ```json
