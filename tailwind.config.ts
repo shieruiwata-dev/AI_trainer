@@ -65,6 +65,10 @@ export default {
           from: { opacity: "1", transform: "translateY(0) scale(1)" },
           to: { opacity: "0", transform: "translateY(-10px) scale(0.98)" },
         },
+        "grow-in": {
+          from: { opacity: "0", transform: "scale(0.93)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
         "pop-out": {
           from: { opacity: "1", transform: "scale(1)" },
           to: { opacity: "0", transform: "scale(0.92)" },
@@ -76,6 +80,7 @@ export default {
         "pop-out": "pop-out 0.15s cubic-bezier(0.32, 0.72, 0, 1) forwards",
         "drop-in": "drop-in 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
         "drop-out": "drop-out 0.2s cubic-bezier(0.32, 0.72, 0, 1) forwards",
+        "grow-in": "grow-in 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
       },
       transitionTimingFunction: {
         ios: "cubic-bezier(0.32, 0.72, 0, 1)",

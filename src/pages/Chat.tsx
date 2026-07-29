@@ -590,14 +590,23 @@ function CaloriesPanel({
 
   return (
     <div className="rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5">
-      {/* 上段: 目標チップ + 摂取カロリー */}
+      {/* 上段: 目標チップ(タップで目標設定へ)+ 摂取カロリー */}
       <div className="flex items-start justify-between px-1">
-        <div className="rounded-[12px] bg-muted px-3.5 py-2">
-          <p className="text-[11px] leading-none text-muted-foreground">目標</p>
-          <p className="mt-1 text-[15px] font-semibold leading-none [font-variant-numeric:tabular-nums]">
-            {hasTarget ? `${targetCalories} kcal` : "未設定"}
-          </p>
-        </div>
+        <Link
+          to="/settings"
+          aria-label="目標を設定する"
+          className="flex items-center gap-1 rounded-[12px] bg-muted px-3.5 py-2 transition-transform active:scale-95"
+        >
+          <span>
+            <span className="block text-[11px] leading-none text-muted-foreground">
+              目標
+            </span>
+            <span className="mt-1 block text-[15px] font-semibold leading-none [font-variant-numeric:tabular-nums]">
+              {hasTarget ? `${targetCalories} kcal` : "未設定"}
+            </span>
+          </span>
+          <ChevronDown className="h-4 w-4 -rotate-90 text-muted-foreground" strokeWidth={2} />
+        </Link>
         <p className="text-[34px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
           {todayCalories}
           <span className="ml-1.5 text-[15px] font-normal text-muted-foreground">
