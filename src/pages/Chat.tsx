@@ -76,6 +76,8 @@ export default function Chat() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logMenuOpen, setLogMenuOpen] = useState(false);
