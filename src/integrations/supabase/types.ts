@@ -14,45 +14,518 @@ export type Database = {
   }
   public: {
     Tables: {
-      profiles: {
+      ai_conversations: {
         Row: {
-          activity_level: string | null
           created_at: string
-          goal_type: string | null
-          height_cm: number | null
+          dify_conversation_id: string
           id: string
-          onboarded: boolean
-          updated_at: string
+          last_used_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dify_conversation_id: string
+          id?: string
+          last_used_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dify_conversation_id?: string
+          id?: string
+          last_used_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_messages: {
+        Row: {
+          content: string
+          conversation_id: string | null
+          created_at: string
+          dify_message_id: string | null
+          id: string
+          intent: string | null
+          metadata: Json
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id?: string | null
+          created_at?: string
+          dify_message_id?: string | null
+          id?: string
+          intent?: string | null
+          metadata?: Json
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string | null
+          created_at?: string
+          dify_message_id?: string | null
+          id?: string
+          intent?: string | null
+          metadata?: Json
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      body_measurements: {
+        Row: {
+          body_fat_percent: number | null
+          created_at: string
+          id: string
+          measured_at: string
+          note: string | null
+          user_id: string
           weight_kg: number | null
         }
         Insert: {
-          activity_level?: string | null
+          body_fat_percent?: number | null
           created_at?: string
-          goal_type?: string | null
-          height_cm?: number | null
-          id: string
-          onboarded?: boolean
-          updated_at?: string
+          id?: string
+          measured_at: string
+          note?: string | null
+          user_id: string
           weight_kg?: number | null
         }
         Update: {
-          activity_level?: string | null
+          body_fat_percent?: number | null
           created_at?: string
-          goal_type?: string | null
-          height_cm?: number | null
           id?: string
-          onboarded?: boolean
-          updated_at?: string
+          measured_at?: string
+          note?: string | null
+          user_id?: string
           weight_kg?: number | null
         }
         Relationships: []
+      }
+      goals: {
+        Row: {
+          calculation_version: string
+          created_at: string
+          goal_type: string
+          id: string
+          is_active: boolean
+          target_calories: number | null
+          target_carbs_g: number | null
+          target_date: string | null
+          target_fat_g: number | null
+          target_protein_g: number | null
+          target_weight_kg: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calculation_version?: string
+          created_at?: string
+          goal_type: string
+          id?: string
+          is_active?: boolean
+          target_calories?: number | null
+          target_carbs_g?: number | null
+          target_date?: string | null
+          target_fat_g?: number | null
+          target_protein_g?: number | null
+          target_weight_kg?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calculation_version?: string
+          created_at?: string
+          goal_type?: string
+          id?: string
+          is_active?: boolean
+          target_calories?: number | null
+          target_carbs_g?: number | null
+          target_date?: string | null
+          target_fat_g?: number | null
+          target_protein_g?: number | null
+          target_weight_kg?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      meal_items: {
+        Row: {
+          amount: number | null
+          calories: number | null
+          carbs_g: number | null
+          created_at: string
+          fat_g: number | null
+          id: string
+          meal_id: string
+          name: string
+          protein_g: number | null
+          unit: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          calories?: number | null
+          carbs_g?: number | null
+          created_at?: string
+          fat_g?: number | null
+          id?: string
+          meal_id: string
+          name: string
+          protein_g?: number | null
+          unit?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          calories?: number | null
+          carbs_g?: number | null
+          created_at?: string
+          fat_g?: number | null
+          id?: string
+          meal_id?: string
+          name?: string
+          protein_g?: number | null
+          unit?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_items_meal_id_fkey"
+            columns: ["meal_id"]
+            isOneToOne: false
+            referencedRelation: "meals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meal_items_same_owner_fk"
+            columns: ["meal_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "meals"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      meals: {
+        Row: {
+          calories: number
+          carbs_g: number
+          confidence: number | null
+          created_at: string
+          eaten_at: string
+          estimation_note: string | null
+          fat_g: number
+          id: string
+          image_path: string | null
+          meal_type: string
+          protein_g: number
+          raw_text: string | null
+          source_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calories: number
+          carbs_g: number
+          confidence?: number | null
+          created_at?: string
+          eaten_at: string
+          estimation_note?: string | null
+          fat_g: number
+          id?: string
+          image_path?: string | null
+          meal_type?: string
+          protein_g: number
+          raw_text?: string | null
+          source_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calories?: number
+          carbs_g?: number
+          confidence?: number | null
+          created_at?: string
+          eaten_at?: string
+          estimation_note?: string | null
+          fat_g?: number
+          id?: string
+          image_path?: string | null
+          meal_type?: string
+          protein_g?: number
+          raw_text?: string | null
+          source_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pending_actions: {
+        Row: {
+          action_type: string
+          created_at: string
+          expires_at: string
+          id: string
+          payload: Json
+          resolved_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload: Json
+          resolved_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload?: Json
+          resolved_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          activity_level: string | null
+          birth_date: string | null
+          body_fat_percent: number | null
+          created_at: string
+          current_weight_kg: number | null
+          display_name: string | null
+          height_cm: number | null
+          onboarding_completed: boolean
+          sex_for_calculation: string | null
+          training_level: string | null
+          updated_at: string
+          user_id: string
+          weekly_training_days: number | null
+        }
+        Insert: {
+          activity_level?: string | null
+          birth_date?: string | null
+          body_fat_percent?: number | null
+          created_at?: string
+          current_weight_kg?: number | null
+          display_name?: string | null
+          height_cm?: number | null
+          onboarding_completed?: boolean
+          sex_for_calculation?: string | null
+          training_level?: string | null
+          updated_at?: string
+          user_id: string
+          weekly_training_days?: number | null
+        }
+        Update: {
+          activity_level?: string | null
+          birth_date?: string | null
+          body_fat_percent?: number | null
+          created_at?: string
+          current_weight_kg?: number | null
+          display_name?: string | null
+          height_cm?: number | null
+          onboarding_completed?: boolean
+          sex_for_calculation?: string | null
+          training_level?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_training_days?: number | null
+        }
+        Relationships: []
+      }
+      trainer_settings: {
+        Row: {
+          created_at: string
+          explanation_level: string
+          trainer_name: string
+          trainer_style: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          explanation_level?: string
+          trainer_name?: string
+          trainer_style?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          explanation_level?: string
+          trainer_name?: string
+          trainer_style?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workout_sessions: {
+        Row: {
+          condition_note: string | null
+          created_at: string
+          ended_at: string | null
+          estimated_minutes: number | null
+          focus_area: string | null
+          id: string
+          plan_json: Json
+          started_at: string | null
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          condition_note?: string | null
+          created_at?: string
+          ended_at?: string | null
+          estimated_minutes?: number | null
+          focus_area?: string | null
+          id?: string
+          plan_json?: Json
+          started_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          condition_note?: string | null
+          created_at?: string
+          ended_at?: string | null
+          estimated_minutes?: number | null
+          focus_area?: string | null
+          id?: string
+          plan_json?: Json
+          started_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workout_sets: {
+        Row: {
+          actual_reps: number | null
+          actual_weight_kg: number | null
+          completed_at: string | null
+          created_at: string
+          exercise_name: string
+          exercise_order: number
+          id: string
+          rpe: number | null
+          session_id: string
+          set_number: number
+          target_reps: number | null
+          target_weight_kg: number | null
+          user_id: string
+        }
+        Insert: {
+          actual_reps?: number | null
+          actual_weight_kg?: number | null
+          completed_at?: string | null
+          created_at?: string
+          exercise_name: string
+          exercise_order: number
+          id?: string
+          rpe?: number | null
+          session_id: string
+          set_number: number
+          target_reps?: number | null
+          target_weight_kg?: number | null
+          user_id: string
+        }
+        Update: {
+          actual_reps?: number | null
+          actual_weight_kg?: number | null
+          completed_at?: string | null
+          created_at?: string
+          exercise_name?: string
+          exercise_order?: number
+          id?: string
+          rpe?: number | null
+          session_id?: string
+          set_number?: number
+          target_reps?: number | null
+          target_weight_kg?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_sets_same_owner_fk"
+            columns: ["session_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "workout_sessions"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "workout_sets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "workout_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_goal_targets: {
+        Args: { p_goal_type: string }
+        Returns: {
+          calculation_version: string
+          target_calories: number
+          target_carbs_g: number
+          target_fat_g: number
+          target_protein_g: number
+        }[]
+      }
+      confirm_pending_action: {
+        Args: { p_action_id: string; p_overrides?: Json }
+        Returns: Json
+      }
+      get_daily_nutrition: {
+        Args: { target_date?: string }
+        Returns: {
+          calories: number
+          carbs_g: number
+          fat_g: number
+          protein_g: number
+        }[]
+      }
+      get_weight_summary: {
+        Args: never
+        Returns: {
+          average_7d_kg: number
+          latest_weight_kg: number
+          previous_7d_average_kg: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
