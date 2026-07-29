@@ -28,6 +28,7 @@ import { useAppData } from "@/hooks/useAppData";
 import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
 import { calcMacroTargets } from "@/lib/nutrition";
 import {
+  conversationDateLabel,
   conversationToText,
   loadConversations,
   saveConversations,
@@ -96,9 +97,13 @@ export default function Chat() {
 
   const sorted = useMemo(() => sortConversations(convs), [convs]);
   const filtered = searchQuery.trim()
-    ? sorted.filter((c) =>
-        c.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
-      )
+    ? sorted.filter((c) => {
+        const q = searchQuery.trim().toLowerCase();
+        return (
+          c.title.toLowerCase().includes(q) ||
+          conversationDateLabel(c).includes(q)
+        );
+      })
     : sorted;
 
   function updateConv(id: string, patch: Partial<Conversation>) {
@@ -336,7 +341,9 @@ export default function Chat() {
                 c.id === currentId ? "bg-muted" : "hover:bg-muted/60"
               )}
             >
-              <span className="min-w-0 flex-1 truncate">{c.title}</span>
+              <span className="min-w-0 flex-1 truncate [font-variant-numeric:tabular-nums]">
+                {conversationDateLabel(c)}
+              </span>
               {c.pinned && (
                 <Pin className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.8} />
               )}
@@ -431,8 +438,8 @@ export default function Chat() {
                 menuPopover.closing ? "animate-pop-out" : "animate-pop-in"
               )}
             >
-              <p className="truncate border-b border-black/5 px-4 py-2.5 text-[13px] text-muted-foreground">
-                {current.title}
+              <p className="truncate border-b border-black/5 px-4 py-2.5 text-[13px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+                {conversationDateLabel(current)}のチャット
               </p>
               <MenuItem
                 label="共有する"

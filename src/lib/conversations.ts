@@ -63,6 +63,13 @@ export function sortConversations(list: Conversation[]): Conversation[] {
   });
 }
 
+/** サイドバー表示用: チャットを開始した日時(分は表示しない) */
+export function conversationDateLabel(conv: Conversation): string {
+  const iso = conv.messages[0]?.createdAt ?? conv.updatedAt;
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours()}時`;
+}
+
 /** 会話全体を共有用テキストに変換 */
 export function conversationToText(conv: Conversation): string {
   return conv.messages
