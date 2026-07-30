@@ -36,6 +36,7 @@ import {
   type UiType,
 } from "@/lib/aiChat";
 import { ChatActionCard } from "@/components/ChatActionCard";
+import { MealRecordPage } from "@/components/MealRecordPage";
 import { uploadChatImage } from "@/lib/uploadImage";
 
 import { calcMacroTargets } from "@/lib/nutrition";
@@ -591,6 +592,14 @@ export default function Chat() {
             originRect={recordPage.rect}
             closing={recordClosing}
             onClose={closeRecordPage}
+            data={data}
+            onAskMenu={() => {
+              closeRecordPage();
+              // シートが閉じてからチャットに自動送信
+              setTimeout(() => {
+                void sendMessage("本日の献立を教えてください");
+              }, 380);
+            }}
           />
         )}
 
@@ -940,18 +949,22 @@ function TopCards({
 /**
  * 全画面の記録ページ。タップしたカードの位置から全画面へ広がり、
  * 閉じるときは元のカード位置へ縮んで戻る。
- * ページの中身はプレースホルダー(内容は今後の指示で実装)。
+ * 食事ページは実装済み。筋トレページはプレースホルダー(今後の指示で実装)。
  */
 function RecordPageSheet({
   type,
   originRect,
   closing,
   onClose,
+  data,
+  onAskMenu,
 }: {
   type: "meal" | "workout";
   originRect: { top: number; left: number; width: number; height: number };
   closing: boolean;
   onClose: () => void;
+  data: ReturnType<typeof useAppData>;
+  onAskMenu: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -999,12 +1012,16 @@ function RecordPageSheet({
           </button>
         </header>
 
-        {/* 本文(余白: 内容は今後追加) */}
-        <div className="flex flex-1 items-center justify-center pb-[max(env(safe-area-inset-bottom,0px),1rem)]">
-          <p className="text-[13px] text-muted-foreground/60">
-            (このページの内容はこれから作ります)
-          </p>
-        </div>
+        {/* 本文 */}
+        {type === "meal" ? (
+          <MealRecordPage data={data} onAskMenu={onAskMenu} />
+        ) : (
+          <div className="flex flex-1 items-center justify-center pb-[max(env(safe-area-inset-bottom,0px),1rem)]">
+            <p className="text-[13px] text-muted-foreground/60">
+              (このページの内容はこれから作ります)
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

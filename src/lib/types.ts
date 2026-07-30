@@ -11,6 +11,8 @@ export interface Profile {
   targetProteinG?: number | null;
   targetFatG?: number | null;
   targetCarbsG?: number | null;
+  /** 目標達成予定日(goals.target_date)。体重グラフの目標ペース線に使用 */
+  targetDate?: string | null;
 }
 
 export interface WeightLog {

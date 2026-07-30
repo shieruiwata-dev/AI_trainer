@@ -182,6 +182,7 @@ class SupabaseStore implements DataStore {
       targetProteinG: goal?.target_protein_g ?? null,
       targetFatG: goal?.target_fat_g ?? null,
       targetCarbsG: goal?.target_carbs_g ?? null,
+      targetDate: goal?.target_date ?? null,
     };
   }
 
