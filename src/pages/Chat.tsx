@@ -75,6 +75,10 @@ const DUPLICATE_OF_CARD_BUTTONS = [
   "このメニューで開始",
   "この目標で設定",
   "キャンセル",
+  // カード内で直接編集できるようになったため候補チップには出さない
+  "量を修正",
+  "食品を追加",
+  "食材を追加",
 ];
 
 /**
@@ -242,10 +246,18 @@ export default function Chat() {
       setConvs((prev) => [conv!, ...prev]);
       setCurrentId(conv.id);
     } else {
-      updateConv(conv.id, {
-        messages: [...conv.messages, userMsg],
-        updatedAt: new Date().toISOString(),
-      });
+      // 直前の更新(カードの無効化など)を消さないよう、常に最新の状態に追記する
+      setConvs((prev) =>
+        prev.map((c) =>
+          c.id === conv!.id
+            ? {
+                ...c,
+                messages: [...c.messages, userMsg],
+                updatedAt: new Date().toISOString(),
+              }
+            : c
+        )
+      );
     }
 
     setInput("");
@@ -336,6 +348,27 @@ export default function Chat() {
       setSending(false);
       setStreamingText(null);
     }
+  }
+
+  /**
+   * 食事カードで食材の量を修正 → 修正内容をチャットで送り直し、
+   * AIにカロリー・PFCを計算し直してもらう。元のカードは無効化する。
+   */
+  function recalculateMeal(messageId: string, message: string) {
+    if (sending) return;
+    setConvs((prev) =>
+      prev.map((c) =>
+        c.id === currentId
+          ? {
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === messageId ? { ...m, superseded: true } : m
+              ),
+            }
+          : c
+      )
+    );
+    void sendMessage(message);
   }
 
   /** 確認カードの「この内容で記録」/「キャンセル」→ confirm-action */
@@ -726,9 +759,11 @@ export default function Chat() {
                     actionData={m.actionData}
                     safety={m.safety}
                     decision={m.decision}
+                    superseded={m.superseded}
                     busy={confirmingId !== null}
                     onConfirm={() => handleDecision(m.id, "confirm")}
                     onReject={() => handleDecision(m.id, "reject")}
+                    onRecalculate={(message) => recalculateMeal(m.id, message)}
                   />
                 )}
                 {m.suggestions && m.suggestions.length > 0 && !m.decision && (

@@ -1,8 +1,11 @@
+import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Check,
   Dumbbell,
   Lightbulb,
+  Plus,
+  RefreshCw,
   Scale,
   Target,
   Utensils,
@@ -70,6 +73,45 @@ function iconFor(ui: UiType) {
   }
 }
 
+/** 食材の編集行 */
+export interface MealItemEdit {
+  name: string;
+  amount: string;
+  unit: string;
+}
+
+function readItems(payload: P): MealItemEdit[] {
+  const raw = Array.isArray(payload.items) ? (payload.items as P[]) : [];
+  return raw.map((it) => ({
+    name: str(it.name) ?? "",
+    amount: num(it.amount) != null ? String(num(it.amount)) : "",
+    unit: str(it.unit) ?? "g",
+  }));
+}
+
+function sameItems(a: MealItemEdit[], b: MealItemEdit[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every(
+    (x, i) =>
+      x.name.trim() === b[i].name.trim() &&
+      x.amount.trim() === b[i].amount.trim() &&
+      x.unit.trim() === b[i].unit.trim()
+  );
+}
+
+/** 修正した食材リストからAIへの再計算メッセージを組み立てる */
+function buildRecalcMessage(items: MealItemEdit[]): string {
+  const list = items
+    .filter((i) => i.name.trim())
+    .map((i) => {
+      const amount = i.amount.trim();
+      const unit = i.unit.trim() || "g";
+      return amount ? `${i.name.trim()} ${amount}${unit}` : i.name.trim();
+    })
+    .join("、");
+  return `食材と量を修正しました: ${list}。この内容でカロリーとPFCを計算し直してください。`;
+}
+
 /**
  * ai-chat の ui_type に応じた確認カード。
  * デザイン仕様は docs/ai-spec.md の payload 構造に対応。
@@ -79,30 +121,46 @@ export function ChatActionCard({
   actionData,
   safety,
   decision,
+  superseded = false,
   busy = false,
   onConfirm,
   onReject,
+  onRecalculate,
 }: {
   uiType: UiType;
   actionData?: Record<string, unknown> | null;
   safety?: { level?: string; note?: string };
   decision?: "confirm" | "reject";
+  /** 量を修正して再計算済み(このカードは無効) */
+  superseded?: boolean;
   busy?: boolean;
   onConfirm: () => void;
   onReject: () => void;
+  /** 食材の量を修正して再計算を依頼する */
+  onRecalculate?: (message: string) => void;
 }) {
+  const action = actionData?.action as
+    | { type?: string; confidence?: number; payload?: P }
+    | undefined;
+  const payload = (action?.payload ?? {}) as P;
+
+  // 食材の編集(null = 未編集)。フックは条件分岐より前に置く
+  const initialItems = useMemo(() => readItems(payload), [payload]);
+  const [edited, setEdited] = useState<MealItemEdit[] | null>(null);
+  const items = edited ?? initialItems;
+  const dirty = edited !== null && !sameItems(edited, initialItems);
+
   // text は本文のみ、onboarding_question は質問文+候補チップで完結するためカード無し
   if (uiType === "text" || uiType === "onboarding_question") return null;
 
   const pendingId =
     (actionData?.pending_action_id as string | undefined) ?? undefined;
-  const action = actionData?.action as
-    | { type?: string; confidence?: number; payload?: P }
-    | undefined;
-  const payload = (action?.payload ?? {}) as P;
   const confidence = num(action?.confidence);
   const isAlert = uiType === "error" || uiType === "safety_notice";
-  const showButtons = isConfirmationUi(uiType) && !!pendingId && !decision;
+  const showButtons =
+    isConfirmationUi(uiType) && !!pendingId && !decision && !superseded;
+  const canEditMeal =
+    uiType === "meal_confirmation" && showButtons && !!onRecalculate;
   const confirmLabel =
     uiType === "workout_plan" ? "このメニューで開始" : "この内容で記録";
 
@@ -145,7 +203,15 @@ export function ChatActionCard({
 
       {/* 本文 */}
       <div className="px-4 py-3.5">
-        {uiType === "meal_confirmation" && <MealBody payload={payload} />}
+        {uiType === "meal_confirmation" && (
+          <MealBody
+            payload={payload}
+            items={items}
+            editable={canEditMeal}
+            dirty={dirty}
+            onChange={setEdited}
+          />
+        )}
         {uiType === "weight_confirmation" && <WeightBody payload={payload} />}
         {uiType === "workout_plan" && <WorkoutPlanBody payload={payload} />}
         {uiType === "workout_set" && <WorkoutSetBody payload={payload} />}
@@ -168,7 +234,7 @@ export function ChatActionCard({
         )}
       </div>
 
-      {/* アクション */}
+      {/* アクション。量を修正した場合は記録の代わりに再計算を促す */}
       {showButtons && (
         <div className="flex gap-2 px-4 pb-4">
           <button
@@ -179,16 +245,35 @@ export function ChatActionCard({
           >
             キャンセル
           </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onConfirm}
-            className="flex h-11 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-primary text-[15px] font-medium text-primary-foreground transition-transform active:scale-[0.97] disabled:opacity-50"
-          >
-            <Check className="h-4 w-4" strokeWidth={2.4} />
-            {confirmLabel}
-          </button>
+          {dirty && canEditMeal ? (
+            <button
+              type="button"
+              disabled={busy || !items.some((i) => i.name.trim())}
+              onClick={() => onRecalculate?.(buildRecalcMessage(items))}
+              className="flex h-11 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-primary text-[15px] font-medium text-primary-foreground transition-transform active:scale-[0.97] disabled:opacity-50"
+            >
+              <RefreshCw className="h-4 w-4" strokeWidth={2.2} />
+              この量で再計算
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onConfirm}
+              className="flex h-11 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-primary text-[15px] font-medium text-primary-foreground transition-transform active:scale-[0.97] disabled:opacity-50"
+            >
+              <Check className="h-4 w-4" strokeWidth={2.4} />
+              {confirmLabel}
+            </button>
+          )}
         </div>
+      )}
+
+      {superseded && !decision && (
+        <p className="mx-4 mb-4 inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5 text-[12px] text-muted-foreground">
+          <RefreshCw className="h-3 w-3" strokeWidth={2.2} />
+          量を修正して計算し直しました
+        </p>
       )}
 
       {decision === "confirm" && (
@@ -209,44 +294,121 @@ export function ChatActionCard({
 
 // ---------- ui_type 別ボディ ----------
 
-/** 食事: 品目リスト → カロリー大 → PFCチップ → 推定メモ */
-function MealBody({ payload }: { payload: P }) {
-  const items = Array.isArray(payload.items) ? (payload.items as P[]) : [];
+/** 食事: 品目リスト(量を編集可) → カロリー大 → PFCチップ → 推定メモ */
+function MealBody({
+  payload,
+  items,
+  editable,
+  dirty,
+  onChange,
+}: {
+  payload: P;
+  items: MealItemEdit[];
+  /** 量の編集と食材追加を許可する */
+  editable: boolean;
+  dirty: boolean;
+  onChange: (items: MealItemEdit[]) => void;
+}) {
   const kcal = num(payload.calories);
   const mealType = MEAL_TYPE_JA[str(payload.meal_type) ?? ""] ?? null;
 
+  const update = (index: number, patch: Partial<MealItemEdit>) =>
+    onChange(items.map((it, i) => (i === index ? { ...it, ...patch } : it)));
+
   return (
     <div>
-      {items.length > 0 && (
-        <ul className="space-y-1">
-          {items.map((it, i) => (
-            <li
-              key={i}
-              className="flex items-baseline justify-between text-[15px]"
-            >
-              <span>{str(it.name) ?? "食品"}</span>
-              <span className="text-[14px] text-muted-foreground [font-variant-numeric:tabular-nums]">
-                {num(it.amount) ?? ""}
-                {str(it.unit) ?? ""}
-              </span>
-            </li>
-          ))}
-        </ul>
+      {editable ? (
+        <div>
+          <p className="mb-1.5 text-[12px] text-muted-foreground">
+            AIが推定した食材と量(タップで修正できます)
+          </p>
+          <ul className="space-y-1.5">
+            {items.map((it, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <input
+                  value={it.name}
+                  onChange={(e) => update(i, { name: e.target.value })}
+                  placeholder="食材名"
+                  className="min-w-0 flex-1 rounded-[10px] bg-secondary px-3 py-2 text-[15px] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <div className="flex w-[104px] shrink-0 items-center rounded-[10px] bg-secondary px-3 py-2 focus-within:ring-2 focus-within:ring-primary/30">
+                  <input
+                    value={it.amount}
+                    onChange={(e) =>
+                      update(i, {
+                        amount: e.target.value.replace(/[^0-9.]/g, ""),
+                      })
+                    }
+                    inputMode="decimal"
+                    placeholder="—"
+                    className="w-full min-w-0 bg-transparent text-right text-[15px] [font-variant-numeric:tabular-nums] placeholder:text-muted-foreground focus:outline-none"
+                  />
+                  <span className="ml-1 shrink-0 text-[13px] text-muted-foreground">
+                    {it.unit || "g"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-label={`${it.name || `${i + 1}番目`}を削除`}
+                  onClick={() => onChange(items.filter((_, x) => x !== i))}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-transform active:scale-90"
+                >
+                  <X className="h-4 w-4" strokeWidth={2} />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() =>
+              onChange([...items, { name: "", amount: "", unit: "g" }])
+            }
+            className="mt-2 inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[13px] text-muted-foreground transition-transform active:scale-95"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+            食材を追加
+          </button>
+        </div>
+      ) : (
+        items.length > 0 && (
+          <ul className="space-y-1">
+            {items.map((it, i) => (
+              <li
+                key={i}
+                className="flex items-baseline justify-between text-[15px]"
+              >
+                <span>{it.name || "食品"}</span>
+                <span className="text-[14px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+                  {it.amount}
+                  {it.amount && it.unit}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )
       )}
-      {kcal != null && (
-        <p className="mt-2 flex items-baseline gap-1.5">
-          <span className="text-[34px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
-            {kcal}
-          </span>
-          <span className="text-[14px] text-muted-foreground">
-            kcal{mealType && ` ・ ${mealType}`}
-          </span>
+      {dirty && (
+        <p className="mt-2.5 rounded-[10px] bg-primary/10 px-3 py-2 text-[12px] leading-[1.5] text-primary">
+          量を変更しました。「この量で再計算」でカロリーとPFCを計算し直します
         </p>
       )}
-      <div className="mt-3 flex gap-2">
-        <MacroChip label="タンパク質" value={num(payload.protein_g)} />
-        <MacroChip label="脂質" value={num(payload.fat_g)} />
-        <MacroChip label="炭水化物" value={num(payload.carbs_g)} />
+      {/* 量を修正した直後の数値は古いので薄く表示する */}
+      <div className={cn(dirty && "opacity-40")}>
+        {kcal != null && (
+          <p className="mt-2 flex items-baseline gap-1.5">
+            <span className="text-[34px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+              {kcal}
+            </span>
+            <span className="text-[14px] text-muted-foreground">
+              kcal{mealType && ` ・ ${mealType}`}
+            </span>
+          </p>
+        )}
+        <div className="mt-3 flex gap-2">
+          <MacroChip label="タンパク質" value={num(payload.protein_g)} />
+          <MacroChip label="脂質" value={num(payload.fat_g)} />
+          <MacroChip label="炭水化物" value={num(payload.carbs_g)} />
+        </div>
       </div>
       {str(payload.estimation_note) && (
         <p className="mt-3 flex items-start gap-1.5 rounded-[10px] bg-[#fafafc] px-3 py-2.5 text-[12px] leading-[1.5] text-muted-foreground">

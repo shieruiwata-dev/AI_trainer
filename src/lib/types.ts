@@ -77,6 +77,8 @@ export interface ChatMessage {
   safety?: { level?: string; note?: string };
   /** 確認カードの結果: 確定済み / 却下済み */
   decision?: "confirm" | "reject";
+  /** 食材の量を修正して再計算したため、このカードは無効 */
+  superseded?: boolean;
 }
 
 
