@@ -120,6 +120,7 @@ Deno.serve(async (req) => {
     if (error) throw error;
 
     return jsonResponse(200, {
+      ok: true,
       status: "confirmed",
       goal_id: data.id,
       message: "目標を保存しました。今日からこの方針で進めましょう。",
