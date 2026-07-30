@@ -894,7 +894,7 @@ function TopCards({
           if (!el) return;
           setPage(Math.round(el.scrollLeft / (el.clientWidth + 12)));
         }}
-        className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto"
+        className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-0.5 py-1.5"
       >
         <div
           ref={firstCardRef}
@@ -1025,7 +1025,7 @@ function WorkoutSetsCard({ sets }: { sets: WorkoutSetRecord[] }) {
   }
 
   return (
-    <div className="flex h-full flex-col rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5">
+    <div className="flex h-full flex-col rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5 shadow-[0_3px_14px_rgba(0,0,0,0.07)]">
       <div className="flex items-center justify-between px-1">
         <p className="text-[13px] font-semibold text-muted-foreground">
           今日の筋トレ
@@ -1114,7 +1114,7 @@ function CaloriesPanel({
       : null;
 
   return (
-    <div className="h-full rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5">
+    <div className="h-full rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5 shadow-[0_3px_14px_rgba(0,0,0,0.07)]">
       {/* 上段: 目標チップ(タップで目標設定へ)+ 摂取カロリー */}
       <div className="flex items-start justify-between px-1">
         <Link
