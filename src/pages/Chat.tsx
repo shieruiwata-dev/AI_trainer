@@ -10,7 +10,6 @@ import {
   Dumbbell,
   Menu,
   Mic,
-  MoreHorizontal,
   Pin,
   PinOff,
   ImagePlus,
@@ -584,8 +583,8 @@ export default function Chat() {
           ))}
         </div>
 
-        {/* 下部フローティング: チャット + 設定 */}
-        <div className="absolute inset-x-4 bottom-[max(calc(env(safe-area-inset-bottom,0px)+0.75rem),1.25rem)] flex items-center justify-between">
+        {/* 下部フローティング: チャット(設定はヘッダー右上へ移動) */}
+        <div className="absolute inset-x-4 bottom-[max(calc(env(safe-area-inset-bottom,0px)+0.75rem),1.25rem)]">
           <button
             onClick={newChat}
             className="flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-[17px] font-medium text-primary-foreground transition-transform active:scale-95"
@@ -593,13 +592,6 @@ export default function Chat() {
             <SquarePen className="h-5 w-5" strokeWidth={2} />
             チャット
           </button>
-          <Link
-            to="/settings"
-            aria-label="設定"
-            className="flex h-12 w-12 items-center justify-center rounded-full border bg-card transition-transform active:scale-95"
-          >
-            <Settings className="h-[22px] w-[22px]" strokeWidth={1.8} />
-          </Link>
         </div>
       </aside>
 
@@ -628,21 +620,13 @@ export default function Chat() {
           <h1 className="flex-1 truncate text-[20px] font-medium tracking-[-0.01em]">
             トレーナー
           </h1>
-          <IconButton label="新しい会話" onClick={newChat}>
-            <SquarePen className="h-6 w-6" strokeWidth={1.8} />
-          </IconButton>
-          <IconButton
-            label="その他"
-            onClick={() => {
-              if (!current) {
-                toast("会話を開始するとメニューを使えます");
-                return;
-              }
-              setMenuOpen((v) => !v);
-            }}
+          <Link
+            to="/settings"
+            aria-label="設定"
+            className="-m-1 flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-transform active:scale-90"
           >
-            <MoreHorizontal className="h-6 w-6" strokeWidth={1.8} />
-          </IconButton>
+            <Settings className="h-6 w-6" strokeWidth={1.8} />
+          </Link>
         </header>
 
         {/* 上部カード(スワイプで カロリーPFC ⇄ 今日の筋トレ、タップで記録ページへ) */}
