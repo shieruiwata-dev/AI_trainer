@@ -6,7 +6,6 @@ import {
   Copy,
   Dumbbell,
   Menu,
-  Mic,
   ImagePlus,
   Scale,
   Settings,
@@ -719,13 +718,6 @@ export default function Chat() {
               rows={1}
               className="max-h-28 min-h-[40px] flex-1 resize-none self-center bg-transparent px-1 py-2 text-[17px] leading-snug text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
-            <IconButton
-              label="音声入力"
-              onClick={() => toast("音声入力は今後対応予定です")}
-              className="mb-0.5"
-            >
-              <Mic className="h-6 w-6" strokeWidth={1.8} />
-            </IconButton>
             <button
               type="button"
               onClick={() => void sendMessage(input)}
