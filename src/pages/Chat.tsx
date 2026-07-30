@@ -437,6 +437,7 @@ export default function Chat() {
 
   /** 目標提案カードの「この目標で始める」→ confirm-goal */
   async function startGoal(messageId: string) {
+    console.log("confirm-goal clicked");
     if (confirmingId) return;
     const msg = messages.find((m) => m.id === messageId);
     const proposal = msg?.proposal;
@@ -447,7 +448,10 @@ export default function Chat() {
 
     setConfirmingId(messageId);
     try {
-      await confirmGoal(proposal);
+      const result = await confirmGoal(proposal);
+      if (result.ok !== true) {
+        throw new Error("confirm-goal returned without ok");
+      }
       setThread((prev) => ({
         ...prev,
         messages: [
@@ -463,7 +467,12 @@ export default function Chat() {
           },
         ],
       }));
-      await data.reload();
+      // 保存成功後の再取得に失敗しても、保存自体を失敗表示に戻さない。
+      try {
+        await data.reload();
+      } catch (reloadError) {
+        console.error("confirm-goal refresh failed", reloadError);
+      }
     } catch (e) {
       console.error("confirm-goal failed", e);
       setThread((prev) => ({

@@ -156,19 +156,21 @@ export async function confirmAction(params: {
   return (data ?? {}) as ConfirmActionResult;
 }
 
-/** 目標提案カードの「この目標で始める」→ confirm-goal */
+/** 目標提案カードの「この目標で始める」→ confirm-goal。 */
 export async function confirmGoal(
   proposal: Record<string, unknown>
-): Promise<ConfirmActionResult> {
+): Promise<ConfirmActionResult & { ok: true }> {
+  console.log("confirm-goal proposal", proposal);
   const { data, error } = await supabase.functions.invoke("confirm-goal", {
     body: { proposal },
   });
 
-  if (error) {
-    console.error("confirm-goal invoke error", error);
-    throw new Error("目標の保存に失敗しました。もう一度お試しください。");
+  console.log("confirm-goal result", { data, error });
+  if (!error && data?.ok === true) {
+    return data as ConfirmActionResult & { ok: true };
   }
-  return (data ?? {}) as ConfirmActionResult;
+
+  throw new Error("目標の保存に失敗しました。もう一度お試しください。");
 }
 
 
