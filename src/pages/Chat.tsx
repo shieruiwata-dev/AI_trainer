@@ -19,6 +19,7 @@ import { useAppData } from "@/hooks/useAppData";
 import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
 import {
   confirmAction,
+  confirmGoal,
   isEdgeChatAvailable,
   sanitizeAssistantText,
   sendAiChat,
@@ -27,6 +28,7 @@ import {
 import SettingsPage from "@/pages/Settings";
 import { CameraSheet } from "@/components/CameraSheet";
 import { ChatActionCard } from "@/components/ChatActionCard";
+import { GoalProposalCard } from "@/components/GoalProposalCard";
 import { MealRecordPage } from "@/components/MealRecordPage";
 import { CaloriesPanel } from "@/components/CaloriesPanel";
 import { WorkoutSetsCard } from "@/components/WorkoutSetsCard";
@@ -256,6 +258,8 @@ export default function Chat() {
           uiType: res.ui_type,
           actionData: (res.data as Record<string, unknown> | null) ?? null,
           suggestions: res.suggestions,
+          quickReplies: res.quick_replies ?? [],
+          proposal: res.proposal ?? null,
           safety: res.safety,
         };
         setThread((prev) => ({
@@ -360,6 +364,57 @@ export default function Chat() {
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "保存に失敗しました");
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
+
+  /** 目標提案カードの「この目標で始める」→ confirm-goal */
+  async function startGoal(messageId: string) {
+    if (confirmingId) return;
+    const msg = messages.find((m) => m.id === messageId);
+    const proposal = msg?.proposal;
+    if (!proposal) {
+      toast.error("この提案はすでに無効です");
+      return;
+    }
+
+    setConfirmingId(messageId);
+    try {
+      await confirmGoal(proposal);
+      setThread((prev) => ({
+        ...prev,
+        messages: [
+          ...prev.messages.map((m) =>
+            m.id === messageId ? { ...m, decision: "confirm" as const } : m
+          ),
+          {
+            id: uid(),
+            role: "assistant" as const,
+            content: "目標を保存しました。今日からこの方針で進めましょう。",
+            createdAt: new Date().toISOString(),
+            uiType: "text",
+          },
+        ],
+      }));
+      await data.reload();
+    } catch (e) {
+      console.error("confirm-goal failed", e);
+      setThread((prev) => ({
+        ...prev,
+        messages: [
+          ...prev.messages,
+          {
+            id: uid(),
+            role: "assistant" as const,
+            content: "目標の保存に失敗しました。もう一度お試しください。",
+            createdAt: new Date().toISOString(),
+            uiType: "text",
+          },
+        ],
+      }));
+      toast.error("目標の保存に失敗しました。もう一度お試しください。");
     } finally {
       setConfirmingId(null);
     }
@@ -551,7 +606,19 @@ export default function Chat() {
               ) : (
                 <div>
                   <AssistantMessage content={sanitizeAssistantText(m.content)} />
-                  {m.uiType && m.uiType !== "text" && (
+                  {m.uiType === "goal_confirmation" && m.proposal ? (
+                    <GoalProposalCard
+                      proposal={m.proposal}
+                      decision={m.decision}
+                      busy={confirmingId !== null}
+                      onStart={() => void startGoal(m.id)}
+                      onAdjust={(message) => void sendMessage(message)}
+                    />
+                  ) : null}
+                  {m.uiType &&
+                    m.uiType !== "text" &&
+                    m.uiType !== "onboarding_question" &&
+                    !(m.uiType === "goal_confirmation" && m.proposal) && (
                     <ChatActionCard
                       uiType={m.uiType as UiType}
                       actionData={m.actionData}
