@@ -20,11 +20,18 @@ import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
 import {
   confirmAction,
   confirmGoal,
+  getPayload,
   isEdgeChatAvailable,
   sanitizeAssistantText,
   sendAiChat,
   type UiType,
 } from "@/lib/aiChat";
+import {
+  extractOnboardingFields,
+  loadOnboardingState,
+  mergeOnboardingState,
+  saveOnboardingState,
+} from "@/lib/onboardingState";
 import SettingsPage from "@/pages/Settings";
 import { CameraSheet } from "@/components/CameraSheet";
 import { ChatActionCard } from "@/components/ChatActionCard";
