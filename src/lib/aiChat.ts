@@ -39,6 +39,8 @@ export interface AiChatResponse {
   proposal?: Record<string, unknown> | null;
   /** onboarding_question などの選択肢 */
   quick_replies?: string[];
+  /** 目標設計オンボーディングでDifyが収集済みと返した項目 */
+  collected_fields?: Record<string, unknown>;
 }
 
 
@@ -56,11 +58,12 @@ export async function sendAiChat(params: {
     const goalContext = params.onboardingState
       ? { onboarding_state: params.onboardingState }
       : null;
+    console.log("[ai-chat] goal_context before invoke", goalContext);
     console.log("ai-chat invoke start", {
       functionName: "ai-chat",
       hasMessage: Boolean(params.message.trim()),
       hasImage: Boolean(params.imagePath),
-      goalContext,
+      hasOnboardingState: Boolean(goalContext?.onboarding_state),
     });
     const { data, error } = await supabase.functions.invoke("ai-chat", {
       body: {
@@ -102,6 +105,12 @@ export async function sendAiChat(params: {
             (q): q is string => typeof q === "string"
           )
         : [];
+    const collectedFields =
+      res.collected_fields && typeof res.collected_fields === "object"
+        ? (res.collected_fields as Record<string, unknown>)
+        : nested.collected_fields && typeof nested.collected_fields === "object"
+          ? (nested.collected_fields as Record<string, unknown>)
+          : null;
     return {
       message: res.message ?? "",
       ui_type: (res.ui_type as UiType) ?? "text",
@@ -112,6 +121,7 @@ export async function sendAiChat(params: {
       safety: res.safety,
       proposal,
       quick_replies: quickReplies,
+      collected_fields: collectedFields ?? undefined,
     };
 
   } catch (error) {

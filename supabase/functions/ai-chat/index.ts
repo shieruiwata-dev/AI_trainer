@@ -17,6 +17,7 @@ type NormalizedAiResult = {
   action: NormalizedAction;
   suggestions: string[];
   quick_replies: string[];
+  collected_fields: JsonObject;
   safety: { level: string; note: string };
   proposal: JsonObject | null;
 };
@@ -80,6 +81,31 @@ const asStringArray = (value: unknown): string[] =>
   Array.isArray(value)
     ? value.map((item) => asString(item)).filter((item) => item.length > 0)
     : [];
+
+const parseJsonObject = (value: unknown): JsonObject => {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value as JsonObject;
+  const text = asString(value);
+  if (!text) return {};
+  try {
+    return asObject(JSON.parse(text));
+  } catch {
+    return {};
+  }
+};
+
+const mergeContextJson = (baseJson: string, incoming: unknown): string => {
+  const base = parseJsonObject(baseJson);
+  const extra = parseJsonObject(incoming);
+  const onboardingState = parseJsonObject(extra.onboarding_state);
+  const merged: JsonObject = { ...base, ...extra };
+  if (Object.keys(onboardingState).length > 0) {
+    merged.onboarding_state = {
+      ...parseJsonObject(base.onboarding_state),
+      ...onboardingState,
+    };
+  }
+  return JSON.stringify(merged);
+};
 
 const toFiniteNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -271,6 +297,12 @@ const normalizeAiResult = (difyData: JsonObject): NormalizedAiResult => {
       : Object.keys(proposalSource).length > 0
         ? proposalSource
         : null;
+  const collectedFields = {
+    ...asObject(action.payload.extracted),
+    ...asObject(action.payload.collected_fields),
+    ...asObject(merged.extracted),
+    ...asObject(merged.collected_fields),
+  };
   return {
     message,
     ui_type: uiType,
@@ -278,6 +310,7 @@ const normalizeAiResult = (difyData: JsonObject): NormalizedAiResult => {
     action,
     suggestions: asStringArray(merged.suggestions),
     quick_replies: asStringArray(merged.quick_replies),
+    collected_fields: collectedFields,
     safety,
     proposal,
   };
@@ -439,6 +472,9 @@ Deno.serve(async (req) => {
     if (!message && !imagePath) return errorResponse(400, "メッセージを入力してください。");
 
     const context = await collectContext(serviceClient, userId);
+    context.goal_context = mergeContextJson(context.goal_context, body.goal_context);
+    context.profile_context = mergeContextJson(context.profile_context, body.profile_context);
+    console.log("ai_chat_goal_context_before_dify", context.goal_context);
     const signedImageUrl = imagePath ? await createSignedImageUrl(serviceClient, imagePath) : null;
     const difyPayload: JsonObject = {
       inputs: {
@@ -541,11 +577,13 @@ Deno.serve(async (req) => {
           action: result.action,
           quick_replies: result.quick_replies,
           proposal: result.proposal,
+          collected_fields: result.collected_fields,
         },
         proposal: result.proposal,
         conversation_id: difyConversationId,
         suggestions: result.suggestions,
         quick_replies: result.quick_replies,
+        collected_fields: result.collected_fields,
         safety: result.safety,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -31,6 +31,7 @@ import {
   loadOnboardingState,
   mergeOnboardingState,
   saveOnboardingState,
+  toOnboardingContext,
 } from "@/lib/onboardingState";
 import SettingsPage from "@/pages/Settings";
 import { CameraSheet } from "@/components/CameraSheet";
@@ -256,31 +257,38 @@ export default function Chat() {
 
       if (isEdgeChatAvailable) {
         // ユーザーの回答から拾える項目をオンボーディング状態にマージ
+        const currentStoredState = mergeOnboardingState(
+          loadOnboardingState(),
+          onboardingStateRef.current as Record<string, unknown>
+        );
         const nextState = mergeOnboardingState(
-          onboardingStateRef.current,
+          currentStoredState,
           extractOnboardingFields(trimmed)
         );
         onboardingStateRef.current = nextState;
         saveOnboardingState(nextState);
+        const onboardingContext = toOnboardingContext(nextState);
 
         // Supabase Edge Function `ai-chat` 経由
         const res = await sendAiChat({
           message: trimmed,
           imagePath,
           conversationId: thread.difyConversationId ?? null,
-          onboardingState:
-            Object.keys(nextState).length > 0
-              ? (nextState as Record<string, unknown>)
-              : null,
+          onboardingState: onboardingContext,
         });
 
         // Dify 側が収集した項目があればマージ
         const collected =
+          res.collected_fields ??
           ((res.data as Record<string, unknown> | null)?.collected_fields as
             | Record<string, unknown>
             | undefined) ??
-          ((getPayload(res.data as Record<string, unknown> | null)
-            .collected_fields) as Record<string, unknown> | undefined);
+          ((getPayload(res.data as Record<string, unknown> | null).collected_fields) as
+            | Record<string, unknown>
+            | undefined) ??
+          ((getPayload(res.data as Record<string, unknown> | null).extracted) as
+            | Record<string, unknown>
+            | undefined);
         if (collected) {
           const merged = mergeOnboardingState(onboardingStateRef.current, collected);
           onboardingStateRef.current = merged;
