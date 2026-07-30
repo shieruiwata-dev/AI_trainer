@@ -88,8 +88,8 @@ export function WorkoutRecordPage({ data }: { data: AppData }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-[max(calc(env(safe-area-inset-bottom,0px)+0.75rem),1rem)] pt-1">
-        {/* ===== 今日の筋トレ(チャット上部カードと同一) ===== */}
-        <div className="h-[248px]">
+        {/* ===== 今日の筋トレ(チャット上部カードと同一。高さは食事記録のPFCカードに合わせる) ===== */}
+        <div className="h-[204px]">
           <WorkoutSetsCard sets={data.todayWorkoutSets} shadow={false} />
         </div>
 

@@ -70,15 +70,15 @@ export function CaloriesPanel({
         </p>
       </div>
 
-      {/* PFCゲージ */}
-      <div className="mt-3 grid grid-cols-3 gap-1">
-        <MacroGauge
+      {/* PFCゲージ(横棒) */}
+      <div className="mt-3 space-y-2.5 px-1">
+        <MacroBar
           label="タンパク質"
           value={proteinG}
           target={targets?.proteinG ?? null}
         />
-        <MacroGauge label="脂質" value={fatG} target={targets?.fatG ?? null} />
-        <MacroGauge
+        <MacroBar label="脂質" value={fatG} target={targets?.fatG ?? null} />
+        <MacroBar
           label="炭水化物"
           value={carbsG}
           target={targets?.carbsG ?? null}
@@ -88,8 +88,8 @@ export function CaloriesPanel({
   );
 }
 
-/** 270度の円弧ゲージ(PFC 1項目分) */
-function MacroGauge({
+/** 横棒ゲージ(PFC 1項目分): ラベル+達成度チップ / 実績・目標 / バー */
+function MacroBar({
   label,
   value,
   target,
@@ -99,9 +99,6 @@ function MacroGauge({
   target: number | null;
 }) {
   const fmt = (n: number) => n.toFixed(1);
-  const r = 33;
-  const C = 2 * Math.PI * r;
-  const arcLen = 0.75 * C; // 270度
   const ratio = target ? Math.min(1, value / target) : 0;
 
   // 達成度チップ: 80%未満=不足(グレー) / 80〜115%=範囲内(緑) / それ以上=オーバー(赤)
@@ -128,57 +125,37 @@ function MacroGauge({
   })();
 
   return (
-    <div className="flex flex-col items-center">
-      <p className="text-[13px] font-semibold">{label}</p>
-      <div className="relative mt-1 h-[70px] w-[70px]">
-        <svg viewBox="0 0 80 80" className="h-full w-full">
-          <g transform="rotate(135 40 40)">
-            <circle
-              cx="40"
-              cy="40"
-              r={r}
-              fill="none"
-              stroke="hsl(240 12% 92%)"
-              strokeWidth="6.5"
-              strokeLinecap="round"
-              strokeDasharray={`${arcLen} ${C}`}
-            />
-            {target != null && ratio > 0 && (
-              <circle
-                cx="40"
-                cy="40"
-                r={r}
-                fill="none"
-                stroke="hsl(210 100% 40%)"
-                strokeWidth="6.5"
-                strokeLinecap="round"
-                strokeDasharray={`${arcLen * ratio} ${C}`}
-                className="transition-[stroke-dasharray] duration-500"
-              />
-            )}
-          </g>
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-[15px] font-bold text-primary [font-variant-numeric:tabular-nums]">
-            {fmt(value)}
-            <span className="text-[10px] font-semibold">g</span>
-          </p>
-        </div>
-      </div>
-      <p className="text-[12px] text-muted-foreground [font-variant-numeric:tabular-nums]">
-        {target != null ? `/ ${fmt(target)}g` : "—"}
-      </p>
-      {status && (
-        <span
-          className={cn(
-            "mt-1.5 inline-flex items-center gap-0.5 rounded-full px-2.5 py-1 text-[11px] font-medium [font-variant-numeric:tabular-nums]",
-            status.cls
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-[13px] font-semibold">
+          {label}
+          {status && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium [font-variant-numeric:tabular-nums]",
+                status.cls
+              )}
+            >
+              {status.check && <Check className="h-3 w-3" strokeWidth={2.5} />}
+              {status.text}
+            </span>
           )}
-        >
-          {status.check && <Check className="h-3 w-3" strokeWidth={2.5} />}
-          {status.text}
-        </span>
-      )}
+        </p>
+        <p className="shrink-0 text-[13px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+          <span className="text-[15px] font-bold text-primary">
+            {fmt(value)}
+          </span>
+          {target != null ? ` / ${fmt(target)}g` : " g"}
+        </p>
+      </div>
+      <div className="mt-1 h-[6px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
+        {target != null && (
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-500"
+            style={{ width: `${ratio * 100}%` }}
+          />
+        )}
+      </div>
     </div>
   );
 }
