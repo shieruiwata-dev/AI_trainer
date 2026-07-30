@@ -160,7 +160,7 @@ export function mergeOnboardingState(
     if (!normalizedKey) continue;
     if (NUMERIC_KEYS.has(normalizedKey)) {
       const num = normalizeNumber(value);
-      if (Number.isFinite(num)) {
+      if (num !== null && Number.isFinite(num)) {
         (next as Record<string, unknown>)[normalizedKey] = num;
       }
       continue;
