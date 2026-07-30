@@ -38,6 +38,8 @@ import {
   mergeServerMessages,
 } from "@/lib/serverConversations";
 
+import { TrainerAvatar } from "@/components/TrainerAvatar";
+import { useSelectedTrainer, type Trainer } from "@/lib/trainers";
 import {
   dayLabel,
   isSameDay,
@@ -74,6 +76,7 @@ const LOAD_CHUNK = 40;
 
 export default function Chat() {
   const data = useAppData();
+  const { trainer } = useSelectedTrainer();
   const [thread, setThread] = useState<ChatThread>(() => loadThread());
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -446,6 +449,7 @@ export default function Chat() {
           <IconButton label="メニュー" onClick={() => setDrawerOpen(true)}>
             <Menu className="h-6 w-6" strokeWidth={1.8} />
           </IconButton>
+          <TrainerAvatar trainer={trainer} size={32} />
           <h1 className="flex-1 truncate text-[20px] font-medium tracking-[-0.01em]">
             トレーナー
           </h1>
@@ -556,79 +560,89 @@ export default function Chat() {
             </div>
           )}
 
-          {visibleMessages.map((m, i) => (
-            <Fragment key={m.id}>
-              {/* 日付が変わる箇所にLINE風のセパレーターを挟む */}
-              {(i === 0 ||
-                !isSameDay(visibleMessages[i - 1].createdAt, m.createdAt)) && (
-                <DaySeparator label={dayLabel(m.createdAt)} />
-              )}
-              {m.role === "user" ? (
-                <UserMessage content={m.content} imageUrl={m.imageUrl} />
-              ) : (
-                <div>
-                  <AssistantMessage content={sanitizeAssistantText(m.content)} />
-                  {m.uiType && m.uiType !== "text" && (
-                    <ChatActionCard
-                      uiType={m.uiType as UiType}
-                      actionData={m.actionData}
-                      safety={m.safety}
-                      decision={m.decision}
-                      superseded={m.superseded}
-                      busy={confirmingId !== null}
-                      onConfirm={() => handleDecision(m.id, "confirm")}
-                      onReject={() => handleDecision(m.id, "reject")}
-                      onRecalculate={(message) => recalculateMeal(m.id, message)}
+          {visibleMessages.map((m, i) => {
+            const prev = visibleMessages[i - 1];
+            const newDay = !prev || !isSameDay(prev.createdAt, m.createdAt);
+            // アイコンは連続する返信の先頭だけに出す(LINEと同じ)
+            const showAvatar = newDay || prev?.role !== "assistant";
+            return (
+              <Fragment key={m.id}>
+                {/* 日付が変わる箇所にLINE風のセパレーターを挟む */}
+                {newDay && <DaySeparator label={dayLabel(m.createdAt)} />}
+                {m.role === "user" ? (
+                  <UserMessage content={m.content} imageUrl={m.imageUrl} />
+                ) : (
+                  <AssistantRow trainer={trainer} showAvatar={showAvatar}>
+                    <AssistantMessage
+                      content={sanitizeAssistantText(m.content)}
                     />
-                  )}
-                  {/* 候補チップは最新メッセージにだけ出す(過去の履歴に残さない) */}
-                  {m.suggestions &&
-                    m.suggestions.length > 0 &&
-                    !m.decision &&
-                    m.id === messages[messages.length - 1]?.id && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {m.suggestions
-                          .filter(
-                            // 確認カードのボタンと重複する候補は出さない
-                            (s) =>
-                              !DUPLICATE_OF_CARD_BUTTONS.some((d) =>
-                                s.includes(d)
-                              )
-                          )
-                          .map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => void sendMessage(s)}
-                              className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
-                            >
-                              {s}
-                            </button>
-                          ))}
-                      </div>
+                    {m.uiType && m.uiType !== "text" && (
+                      <ChatActionCard
+                        uiType={m.uiType as UiType}
+                        actionData={m.actionData}
+                        safety={m.safety}
+                        decision={m.decision}
+                        superseded={m.superseded}
+                        busy={confirmingId !== null}
+                        onConfirm={() => handleDecision(m.id, "confirm")}
+                        onReject={() => handleDecision(m.id, "reject")}
+                        onRecalculate={(message) =>
+                          recalculateMeal(m.id, message)
+                        }
+                      />
                     )}
-                </div>
-              )}
-            </Fragment>
-          ))}
+                    {/* 候補チップは最新メッセージにだけ出す(過去の履歴に残さない) */}
+                    {m.suggestions &&
+                      m.suggestions.length > 0 &&
+                      !m.decision &&
+                      m.id === messages[messages.length - 1]?.id && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {m.suggestions
+                            .filter(
+                              // 確認カードのボタンと重複する候補は出さない
+                              (s) =>
+                                !DUPLICATE_OF_CARD_BUTTONS.some((d) =>
+                                  s.includes(d)
+                                )
+                            )
+                            .map((s) => (
+                              <button
+                                key={s}
+                                onClick={() => void sendMessage(s)}
+                                className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
+                              >
+                                {s}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                  </AssistantRow>
+                )}
+              </Fragment>
+            );
+          })}
 
           {/* 応答待ち: まだ本文が来ていなければ思考中の点、来ていれば逐次表示 */}
-          {streamingText !== null &&
-            (sanitizeAssistantText(streamingText) ? (
-              <AssistantMessage
-                content={sanitizeAssistantText(streamingText)}
-                streaming
-              />
-            ) : (
-              <ThinkingIndicator
-                hint={
-                  showThinkingHint
-                    ? thinking?.withImage
-                      ? "写真から食事を読み取っています…"
-                      : "考えています…"
-                    : null
-                }
-              />
-            ))}
+          {streamingText !== null && (
+            <AssistantRow trainer={trainer} showAvatar>
+              {sanitizeAssistantText(streamingText) ? (
+                <AssistantMessage
+                  content={sanitizeAssistantText(streamingText)}
+                  streaming
+                />
+              ) : (
+                <ThinkingIndicator
+                  hint={
+                    showThinkingHint
+                      ? thinking?.withImage
+                        ? "写真から食事を読み取っています…"
+                        : "考えています…"
+                      : null
+                  }
+                />
+              )}
+            </AssistantRow>
+          )}
           <div ref={bottomRef} />
         </div>
 
@@ -984,6 +998,34 @@ function SidebarBigLink({
       <span className="text-primary">{icon}</span>
       {label}
     </Link>
+  );
+}
+
+/** 返信の左にトレーナーの顔アイコンを添える行(連続返信では空けて字下げを揃える) */
+const AVATAR_SIZE = 34;
+
+function AssistantRow({
+  trainer,
+  showAvatar,
+  children,
+}: {
+  trainer: Trainer;
+  showAvatar: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-2.5">
+      {showAvatar ? (
+        <TrainerAvatar trainer={trainer} size={AVATAR_SIZE} className="mt-0.5" />
+      ) : (
+        <span
+          aria-hidden
+          className="shrink-0"
+          style={{ width: AVATAR_SIZE }}
+        />
+      )}
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
   );
 }
 

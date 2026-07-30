@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { useAppData } from "@/hooks/useAppData";
 import { GOAL_TYPE_LABEL, type GoalType } from "@/lib/types";
 import { getTrainerMode } from "@/lib/trainer";
+import { TrainerAvatar } from "@/components/TrainerAvatar";
+import { TRAINERS, useSelectedTrainer } from "@/lib/trainers";
+import { cn } from "@/lib/utils";
 
 export default function Settings({
   embedded = false,
@@ -16,6 +19,7 @@ export default function Settings({
   embedded?: boolean;
 }) {
   const data = useAppData();
+  const { trainer, select } = useSelectedTrainer();
   const [name, setName] = useState("");
   const [goalType, setGoalType] = useState<GoalType>("diet");
   const [height, setHeight] = useState("");
@@ -79,6 +83,60 @@ export default function Settings({
           目標を設定すると、トレーナーのアドバイスがより具体的になります。
         </p>
       </header>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-[15px]">トレーナーのアイコン</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-2">
+            {TRAINERS.map((t) => {
+              const selected = t.id === trainer.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => {
+                    select(t.id);
+                    toast(`${t.name}トレーナーに変更しました`);
+                  }}
+                  className="flex flex-col items-center gap-1.5 rounded-[14px] py-1.5 transition-transform ease-ios active:scale-95"
+                >
+                  <span
+                    className={cn(
+                      "rounded-full p-[2px] transition-colors",
+                      selected ? "bg-primary" : "bg-transparent"
+                    )}
+                  >
+                    <TrainerAvatar
+                      trainer={t}
+                      size={58}
+                      className={cn(
+                        "border-2",
+                        selected ? "border-card" : "border-transparent"
+                      )}
+                    />
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[12px] leading-tight",
+                      selected
+                        ? "font-medium text-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {t.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-[13px] text-muted-foreground">
+            {trainer.tagline}のトレーナーです。チャットの返信に顔アイコンが表示されます。
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-3">

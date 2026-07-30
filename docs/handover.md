@@ -67,6 +67,15 @@
   1枚のグリッド画像に合成(ai-chatが画像1枚しか受けないため)
 - **AI連携**: `isEdgeChatAvailable` → `sendAiChat`(ai-chat Edge Function)/ でなければ `sendToTrainer`(デモ)。
   確認カード→ `handleDecision` → confirm-action
+- **トレーナーの顔アイコン**(`lib/trainers.ts` + `components/TrainerAvatar.tsx`):
+  設定の「トレーナーのアイコン」で4人から選ぶ。選択は localStorage `fitcoach.trainer_icon`
+  (端末ごと。**別デバイス同期にはバックエンドに列が必要=柴崎さん案件**)。
+  設定はチャットのオーバーレイ内にあるため、`useSelectedTrainer` が CustomEvent
+  `fitcoach:trainer-changed` を購読して裏のチャットへ即時反映する。
+  表示箇所: ヘッダー(32px)+ 返信の左(34px、連続返信では先頭のみ=LINEと同じ)+ 思考中インジケーター。
+  画像は `src/assets/trainers/{id}.(png|jpg|jpeg|webp)` に置く(`flow`/`fresh`/`power`/`hard`)。
+  `import.meta.glob` で存在するものだけ拾うので**未配置でもビルドは通り**、頭文字にフォールバックする。
+  詳細は `src/assets/trainers/README.md`。※2026-07-30時点で画像ファイルは未配置(ユーザーから受領待ち)
 - **思考中インジケーター**(`ThinkingIndicator`): 応答待ちの間、Action Blueの3点が波打つ
   (tailwind `animate-thinking-dot`、1.3s ease-ios、各点0.16sずらし)。固まったと誤解されないための表示。
   本文が1文字でも来たら通常の逐次表示に切り替わる。**3.5秒以上待たせるときだけ**説明を添える
