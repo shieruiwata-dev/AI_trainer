@@ -73,7 +73,22 @@ export async function sendAiChat(params: {
       throw new Error("AIトレーナーから応答がありませんでした");
     }
 
-    const res = data as Partial<AiChatResponse>;
+    const res = data as Partial<AiChatResponse> & { data?: Record<string, unknown> };
+    const nested = (res.data ?? {}) as Record<string, unknown>;
+    const proposal =
+      (res.proposal && typeof res.proposal === "object"
+        ? (res.proposal as Record<string, unknown>)
+        : null) ??
+      (nested.proposal && typeof nested.proposal === "object"
+        ? (nested.proposal as Record<string, unknown>)
+        : null);
+    const quickReplies = Array.isArray(res.quick_replies)
+      ? res.quick_replies.filter((q): q is string => typeof q === "string")
+      : Array.isArray(nested.quick_replies)
+        ? (nested.quick_replies as unknown[]).filter(
+            (q): q is string => typeof q === "string"
+          )
+        : [];
     return {
       message: res.message ?? "",
       ui_type: (res.ui_type as UiType) ?? "text",
@@ -82,7 +97,10 @@ export async function sendAiChat(params: {
       conversation_id: res.conversation_id,
       suggestions: res.suggestions ?? [],
       safety: res.safety,
+      proposal,
+      quick_replies: quickReplies,
     };
+
   } catch (error) {
     console.error("ai-chat invoke catch", error);
     throw error;
