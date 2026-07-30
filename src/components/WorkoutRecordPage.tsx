@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
-  Bar,
-  BarChart,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -153,7 +153,7 @@ export function WorkoutRecordPage({ data }: { data: AppData }) {
   );
 }
 
-/** 日ごとの筋トレボリューム(重量×レップ数の合計)を部位別に積み上げ表示 */
+/** 日ごとの筋トレボリューム(重量×レップの合計)。部位ボタンで切り替える折れ線グラフ */
 function VolumeChart({
   data,
   partBySession,
@@ -161,31 +161,53 @@ function VolumeChart({
   data: AppData;
   partBySession: Map<string, string>;
 }) {
-  const chart = useMemo(() => {
-    // 日付 → 部位 → ボリューム
-    const byDate = new Map<string, Map<string, number>>();
+  // 常に表示する部位ボタン
+  const FIXED_PARTS = ["shoulders", "chest", "back", "legs"];
+
+  const volumes = useMemo(() => {
+    // 部位 → 日付 → ボリューム
+    const byPart = new Map<string, Map<string, number>>();
     for (const s of data.workoutSets) {
       const volume = (s.weightKg ?? 0) * (s.reps ?? 0);
       if (volume <= 0) continue;
       const part = partBySession.get(s.sessionId ?? "") ?? "other";
-      if (!byDate.has(s.date)) byDate.set(s.date, new Map());
-      const parts = byDate.get(s.date)!;
-      parts.set(part, (parts.get(part) ?? 0) + volume);
+      if (!byPart.has(part)) byPart.set(part, new Map());
+      const days = byPart.get(part)!;
+      days.set(s.date, (days.get(s.date) ?? 0) + volume);
     }
-
-    const dates = [...byDate.keys()].sort().slice(-14); // 直近14日分
-    const presentParts = Object.keys(PART_META).filter((p) =>
-      dates.some((d) => byDate.get(d)!.has(p))
-    );
-    const rows = dates.map((date) => {
-      const row: Record<string, number | string> = { label: labelMD(date) };
-      for (const p of presentParts) {
-        row[p] = Math.round(byDate.get(date)!.get(p) ?? 0);
-      }
-      return row;
-    });
-    return { rows, presentParts };
+    return byPart;
   }, [data.workoutSets, partBySession]);
+
+  // データがある追加部位(腕・体幹など)もボタンに含める
+  const parts = useMemo(() => {
+    const extras = [...volumes.keys()].filter((p) => !FIXED_PARTS.includes(p));
+    return [...FIXED_PARTS, ...extras];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volumes]);
+
+  // 初期選択: 直近に記録がある部位(無ければ肩)
+  const [selected, setSelected] = useState<string>(() => {
+    let latestPart = "shoulders";
+    let latestDate = "";
+    for (const [part, days] of volumes) {
+      for (const date of days.keys()) {
+        if (date > latestDate) {
+          latestDate = date;
+          latestPart = part;
+        }
+      }
+    }
+    return latestPart;
+  });
+
+  const rows = useMemo(() => {
+    const days = volumes.get(selected);
+    if (!days) return [];
+    return [...days.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-14)
+      .map(([date, v]) => ({ label: labelMD(date), volume: Math.round(v) }));
+  }, [volumes, selected]);
 
   return (
     <div className="rounded-[16px] border bg-card px-4 pb-3 pt-3.5">
@@ -194,75 +216,73 @@ function VolumeChart({
         <span className="ml-1.5 font-normal">(重量×レップ×セット)</span>
       </p>
 
-      {chart.rows.length === 0 ? (
-        <p className="py-8 text-center text-[13px] text-muted-foreground">
-          セットを記録するとボリュームが表示されます。
+      {/* 部位切り替えボタン */}
+      <div className="no-scrollbar mt-2.5 flex gap-1.5 overflow-x-auto px-1">
+        {parts.map((p) => (
+          <button
+            key={p}
+            onClick={() => setSelected(p)}
+            className={
+              p === selected
+                ? "shrink-0 rounded-full bg-primary px-4 py-1.5 text-[13px] font-medium text-primary-foreground transition-transform active:scale-95"
+                : "shrink-0 rounded-full border bg-card px-4 py-1.5 text-[13px] text-muted-foreground transition-transform active:scale-95"
+            }
+          >
+            {PART_META[p]?.label ?? p}
+          </button>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="py-7 text-center text-[13px] text-muted-foreground">
+          {PART_META[selected]?.label ?? selected}
+          の記録はまだありません。
           <br />
           チャットで「ベンチプレス 60kgを8回」のように伝えてください
         </p>
       ) : (
-        <>
-          <div className="mt-1 h-36">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chart.rows}
-                margin={{ top: 8, right: 8, bottom: 0, left: -12 }}
-                barCategoryGap="30%"
-              >
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 10, fill: "#7a7a7a" }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: "#7a7a7a" }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  cursor={{ fill: "rgba(0,0,0,0.04)" }}
-                  formatter={(v, name) => [
-                    `${Number(v).toLocaleString()} kg`,
-                    PART_META[String(name)]?.label ?? name,
-                  ]}
-                  contentStyle={{
-                    borderRadius: 11,
-                    fontSize: 12,
-                    border: "1px solid #e0e0e0",
-                    boxShadow: "none",
-                  }}
-                />
-                {chart.presentParts.map((p, i) => (
-                  <Bar
-                    key={p}
-                    dataKey={p}
-                    stackId="volume"
-                    fill={PART_META[p].color}
-                    radius={
-                      i === chart.presentParts.length - 1 ? [3, 3, 0, 0] : 0
-                    }
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          {/* 部位の凡例 */}
-          <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-            {chart.presentParts.map((p) => (
-              <span
-                key={p}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground"
-              >
-                <span
-                  className="inline-block h-2 w-2 rounded-[3px]"
-                  style={{ background: PART_META[p].color }}
-                />
-                {PART_META[p].label}
-              </span>
-            ))}
-          </div>
-        </>
+        <div className="mt-2 h-32">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={rows}
+              margin={{ top: 8, right: 10, bottom: 0, left: -8 }}
+            >
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 10, fill: "#7a7a7a" }}
+                tickLine={false}
+                axisLine={false}
+                minTickGap={24}
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#7a7a7a" }}
+                tickLine={false}
+                axisLine={false}
+                width={44}
+                domain={[0, "dataMax + 200"]}
+              />
+              <Tooltip
+                formatter={(v) => [
+                  `${Number(v).toLocaleString()} kg`,
+                  "ボリューム",
+                ]}
+                contentStyle={{
+                  borderRadius: 11,
+                  fontSize: 12,
+                  border: "1px solid #e0e0e0",
+                  boxShadow: "none",
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="volume"
+                stroke="#0066cc"
+                strokeWidth={2.2}
+                dot={{ r: 3, fill: "#0066cc", strokeWidth: 0 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       )}
     </div>
   );
