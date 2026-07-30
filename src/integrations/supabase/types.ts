@@ -87,79 +87,323 @@ export type Database = {
       }
       body_measurements: {
         Row: {
+          bmr_kcal: number | null
           body_fat_percent: number | null
+          body_fat_percentage: number | null
+          body_weight_kg: number | null
           created_at: string
           id: string
+          lean_mass_kg: number | null
           measured_at: string
+          metadata: Json
+          muscle_mass_kg: number | null
           note: string | null
+          provider: string
+          provider_sample_id: string | null
+          standing_heart_rate_bpm: number | null
+          updated_at: string
           user_id: string
           weight_kg: number | null
         }
         Insert: {
+          bmr_kcal?: number | null
           body_fat_percent?: number | null
+          body_fat_percentage?: number | null
+          body_weight_kg?: number | null
           created_at?: string
           id?: string
+          lean_mass_kg?: number | null
           measured_at: string
+          metadata?: Json
+          muscle_mass_kg?: number | null
           note?: string | null
+          provider?: string
+          provider_sample_id?: string | null
+          standing_heart_rate_bpm?: number | null
+          updated_at?: string
           user_id: string
           weight_kg?: number | null
         }
         Update: {
+          bmr_kcal?: number | null
           body_fat_percent?: number | null
+          body_fat_percentage?: number | null
+          body_weight_kg?: number | null
           created_at?: string
           id?: string
+          lean_mass_kg?: number | null
           measured_at?: string
+          metadata?: Json
+          muscle_mass_kg?: number | null
           note?: string | null
+          provider?: string
+          provider_sample_id?: string | null
+          standing_heart_rate_bpm?: number | null
+          updated_at?: string
           user_id?: string
           weight_kg?: number | null
         }
         Relationships: []
       }
+      external_connections: {
+        Row: {
+          access_token_encrypted: string | null
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          metadata: Json
+          provider: string
+          provider_user_id: string | null
+          refresh_token_encrypted: string | null
+          scopes: string[]
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          metadata?: Json
+          provider: string
+          provider_user_id?: string | null
+          refresh_token_encrypted?: string | null
+          scopes?: string[]
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          metadata?: Json
+          provider?: string
+          provider_user_id?: string | null
+          refresh_token_encrypted?: string | null
+          scopes?: string[]
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      goal_checkins: {
+        Row: {
+          adherence_score: number | null
+          checkin_date: string
+          created_at: string
+          goal_id: string
+          id: string
+          progress_status: string
+          recommended_changes: Json
+          summary: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          adherence_score?: number | null
+          checkin_date?: string
+          created_at?: string
+          goal_id: string
+          id?: string
+          progress_status?: string
+          recommended_changes?: Json
+          summary: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          adherence_score?: number | null
+          checkin_date?: string
+          created_at?: string
+          goal_id?: string
+          id?: string
+          progress_status?: string
+          recommended_changes?: Json
+          summary?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_checkins_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goal_kpis: {
+        Row: {
+          created_at: string
+          details: Json
+          goal_id: string
+          id: string
+          is_active: boolean
+          kpi_type: string
+          period: string
+          target_value: number | null
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          goal_id: string
+          id?: string
+          is_active?: boolean
+          kpi_type: string
+          period: string
+          target_value?: number | null
+          unit: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          goal_id?: string
+          id?: string
+          is_active?: boolean
+          kpi_type?: string
+          period?: string
+          target_value?: number | null
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_kpis_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           calculation_version: string
           created_at: string
+          created_by: string
+          difficulty: string
           goal_type: string
           id: string
           is_active: boolean
+          notes: string | null
+          purpose_type: string | null
+          start_date: string
+          status: string
           target_calories: number | null
           target_carbs_g: number | null
           target_date: string | null
           target_fat_g: number | null
+          target_metrics: Json
           target_protein_g: number | null
           target_weight_kg: number | null
+          title: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           calculation_version?: string
           created_at?: string
+          created_by?: string
+          difficulty?: string
           goal_type: string
           id?: string
           is_active?: boolean
+          notes?: string | null
+          purpose_type?: string | null
+          start_date?: string
+          status?: string
           target_calories?: number | null
           target_carbs_g?: number | null
           target_date?: string | null
           target_fat_g?: number | null
+          target_metrics?: Json
           target_protein_g?: number | null
           target_weight_kg?: number | null
+          title?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           calculation_version?: string
           created_at?: string
+          created_by?: string
+          difficulty?: string
           goal_type?: string
           id?: string
           is_active?: boolean
+          notes?: string | null
+          purpose_type?: string | null
+          start_date?: string
+          status?: string
           target_calories?: number | null
           target_carbs_g?: number | null
           target_date?: string | null
           target_fat_g?: number | null
+          target_metrics?: Json
           target_protein_g?: number | null
           target_weight_kg?: number | null
+          title?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      health_samples: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          metadata: Json
+          provider: string
+          provider_sample_id: string | null
+          sample_type: string
+          source_device: string | null
+          started_at: string
+          unit: string
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          metadata?: Json
+          provider: string
+          provider_sample_id?: string | null
+          sample_type: string
+          source_device?: string | null
+          started_at: string
+          unit: string
+          updated_at?: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          metadata?: Json
+          provider?: string
+          provider_sample_id?: string | null
+          sample_type?: string
+          source_device?: string | null
+          started_at?: string
+          unit?: string
+          updated_at?: string
+          user_id?: string
+          value?: number
         }
         Relationships: []
       }
@@ -310,14 +554,19 @@ export type Database = {
       profiles: {
         Row: {
           activity_level: string | null
+          available_training_days: number | null
           birth_date: string | null
           body_fat_percent: number | null
           created_at: string
           current_weight_kg: number | null
+          diet_strictness: string | null
           display_name: string | null
           height_cm: number | null
+          injury_notes: string | null
           onboarding_completed: boolean
           sex_for_calculation: string | null
+          trainer_style: string | null
+          training_experience: string | null
           training_level: string | null
           updated_at: string
           user_id: string
@@ -325,14 +574,19 @@ export type Database = {
         }
         Insert: {
           activity_level?: string | null
+          available_training_days?: number | null
           birth_date?: string | null
           body_fat_percent?: number | null
           created_at?: string
           current_weight_kg?: number | null
+          diet_strictness?: string | null
           display_name?: string | null
           height_cm?: number | null
+          injury_notes?: string | null
           onboarding_completed?: boolean
           sex_for_calculation?: string | null
+          trainer_style?: string | null
+          training_experience?: string | null
           training_level?: string | null
           updated_at?: string
           user_id: string
@@ -340,18 +594,71 @@ export type Database = {
         }
         Update: {
           activity_level?: string | null
+          available_training_days?: number | null
           birth_date?: string | null
           body_fat_percent?: number | null
           created_at?: string
           current_weight_kg?: number | null
+          diet_strictness?: string | null
           display_name?: string | null
           height_cm?: number | null
+          injury_notes?: string | null
           onboarding_completed?: boolean
           sex_for_calculation?: string | null
+          trainer_style?: string | null
+          training_experience?: string | null
           training_level?: string | null
           updated_at?: string
           user_id?: string
           weekly_training_days?: number | null
+        }
+        Relationships: []
+      }
+      sync_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          metadata: Json
+          provider: string
+          records_inserted: number
+          records_received: number
+          records_skipped: number
+          records_updated: number
+          status: string
+          sync_finished_at: string | null
+          sync_started_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          provider: string
+          records_inserted?: number
+          records_received?: number
+          records_skipped?: number
+          records_updated?: number
+          status?: string
+          sync_finished_at?: string | null
+          sync_started_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          provider?: string
+          records_inserted?: number
+          records_received?: number
+          records_skipped?: number
+          records_updated?: number
+          status?: string
+          sync_finished_at?: string | null
+          sync_started_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -384,13 +691,22 @@ export type Database = {
       }
       workout_sessions: {
         Row: {
+          active_energy_kcal: number | null
+          activity_type: string | null
+          avg_heart_rate_bpm: number | null
           condition_note: string | null
           created_at: string
+          distance_m: number | null
+          duration_seconds: number | null
           ended_at: string | null
           estimated_minutes: number | null
           focus_area: string | null
           id: string
+          max_heart_rate_bpm: number | null
           plan_json: Json
+          provider: string
+          provider_workout_id: string | null
+          raw_payload: Json
           started_at: string | null
           status: string
           title: string | null
@@ -398,13 +714,22 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          active_energy_kcal?: number | null
+          activity_type?: string | null
+          avg_heart_rate_bpm?: number | null
           condition_note?: string | null
           created_at?: string
+          distance_m?: number | null
+          duration_seconds?: number | null
           ended_at?: string | null
           estimated_minutes?: number | null
           focus_area?: string | null
           id?: string
+          max_heart_rate_bpm?: number | null
           plan_json?: Json
+          provider?: string
+          provider_workout_id?: string | null
+          raw_payload?: Json
           started_at?: string | null
           status?: string
           title?: string | null
@@ -412,13 +737,22 @@ export type Database = {
           user_id: string
         }
         Update: {
+          active_energy_kcal?: number | null
+          activity_type?: string | null
+          avg_heart_rate_bpm?: number | null
           condition_note?: string | null
           created_at?: string
+          distance_m?: number | null
+          duration_seconds?: number | null
           ended_at?: string | null
           estimated_minutes?: number | null
           focus_area?: string | null
           id?: string
+          max_heart_rate_bpm?: number | null
           plan_json?: Json
+          provider?: string
+          provider_workout_id?: string | null
+          raw_payload?: Json
           started_at?: string | null
           status?: string
           title?: string | null
