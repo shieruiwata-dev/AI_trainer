@@ -35,7 +35,12 @@ export interface AiChatResponse {
   conversation_id?: string;
   suggestions?: string[];
   safety?: { level?: string; note?: string };
+  /** 目標設計フロー(ui_type: goal_confirmation)の提案内容 */
+  proposal?: Record<string, unknown> | null;
+  /** onboarding_question などの選択肢 */
+  quick_replies?: string[];
 }
+
 
 export const isEdgeChatAvailable = isSupabaseConfigured;
 
