@@ -10,6 +10,7 @@ import {
 import { Toaster } from "sonner";
 import Chat from "@/pages/Chat";
 import Log from "@/pages/Log";
+import Goal from "@/pages/Goal";
 import Settings from "@/pages/Settings";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
@@ -67,6 +68,14 @@ export default function App() {
                 element={
                   <RequireAuth>
                     <Log />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/goal"
+                element={
+                  <RequireAuth>
+                    <Goal />
                   </RequireAuth>
                 }
               />

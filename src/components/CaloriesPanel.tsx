@@ -41,11 +41,11 @@ export function CaloriesPanel({
         shadow && "shadow-[0_3px_14px_rgba(0,0,0,0.07)]"
       )}
     >
-      {/* 上段: 目標チップ(タップで目標設定へ)+ 摂取カロリー */}
+      {/* 上段: 目標チップ(タップで目標ページへ)+ 摂取カロリー */}
       <div className="flex items-start justify-between px-1">
         <Link
-          to="/settings"
-          aria-label="目標を設定する"
+          to="/goal"
+          aria-label="目標を見る"
           onClick={(e) => e.stopPropagation()}
           className="flex items-center gap-1 rounded-[12px] bg-muted px-3.5 py-2 transition-transform active:scale-95"
         >
