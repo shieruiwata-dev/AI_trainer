@@ -1,27 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowUp,
   Camera,
-  Check,
   ChevronDown,
   ClipboardList,
   Copy,
   Dumbbell,
   Menu,
   Mic,
-  Pin,
-  PinOff,
   ImagePlus,
   Scale,
-  Search,
   Settings,
-  SquarePen,
   X,
   ThumbsDown,
   ThumbsUp,
-  Trash2,
-  Upload,
   Utensils,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -45,20 +38,17 @@ import { composeImages } from "@/lib/composeImages";
 import { uploadChatImage } from "@/lib/uploadImage";
 import {
   fetchServerMessages,
-  mergeServerHistory,
+  mergeServerMessages,
 } from "@/lib/serverConversations";
 
-import { calcMacroTargets } from "@/lib/nutrition";
 import {
-  conversationDateLabel,
-  conversationToText,
-  loadConversations,
-  saveConversations,
-  sortConversations,
-  titleFrom,
-  type Conversation,
-} from "@/lib/conversations";
-import type { ChatMessage, Profile, WorkoutSetRecord } from "@/lib/types";
+  dayLabel,
+  isSameDay,
+  loadThread,
+  saveThread,
+  type ChatThread,
+} from "@/lib/thread";
+import type { ChatMessage } from "@/lib/types";
 import { uid, cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
@@ -81,27 +71,13 @@ const DUPLICATE_OF_CARD_BUTTONS = [
   "食材を追加",
 ];
 
-/**
- * 閉じるときも退出アニメーションを流すためのマウント管理。
- * open=false になってから duration ms は closing 状態でマウントを維持する。
- */
-function useAnimatedPresence(open: boolean, duration = 200) {
-  const [mounted, setMounted] = useState(open);
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-      return;
-    }
-    const t = setTimeout(() => setMounted(false), duration);
-    return () => clearTimeout(t);
-  }, [open, duration]);
-  return { mounted, closing: mounted && !open };
-}
+/** 一度に描画する件数。上端までスクロールしたら過去分を追加表示する */
+const INITIAL_VISIBLE = 40;
+const LOAD_CHUNK = 40;
 
 export default function Chat() {
   const data = useAppData();
-  const [convs, setConvs] = useState<Conversation[]>(() => loadConversations());
-  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [thread, setThread] = useState<ChatThread>(() => loadThread());
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   // 入力欄に添付中の画像(カメラ撮影 / ライブラリ選択)。送信で消費する
@@ -115,13 +91,6 @@ export default function Chat() {
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logMenuOpen, setLogMenuOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [deleteArmed, setDeleteArmed] = useState(false);
-  const menuPopover = useAnimatedPresence(menuOpen, 150);
-
-  useEffect(() => {
-    if (!menuOpen) setDeleteArmed(false);
-  }, [menuOpen]);
   const [cameraOpen, setCameraOpen] = useState(false);
   // 設定オーバーレイ: 歯車の位置から円形に広がる(閉じると逆再生)
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -137,11 +106,15 @@ export default function Chat() {
     const t = setTimeout(() => setSettingsMounted(false), 720);
     return () => clearTimeout(t);
   }, [settingsOpen]);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
+  // メッセージ領域のスクロール管理(過去分の遅延表示用)
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  /** 過去分を上に足す直前の「下端からの距離」。復元してスクロール位置を維持する */
+  const prependAnchor = useRef<number | null>(null);
+  const didFirstScroll = useRef(false);
 
   // 上部カード → 全画面記録ページ(カードの位置から広がるアニメーション)
   const [recordPage, setRecordPage] = useState<{
@@ -175,46 +148,56 @@ export default function Chat() {
     }, 360);
   }
 
-  const current = convs.find((c) => c.id === currentId) ?? null;
-  const messages = current?.messages ?? [];
+  const messages = thread.messages;
 
   useEffect(() => {
-    saveConversations(convs);
-  }, [convs]);
+    saveThread(thread);
+  }, [thread]);
 
   // サーバーに保存されたチャット履歴(ai_messages)を読み込み、
-  // この端末に無い分をサイドバーに合成する(別デバイスで履歴が見えない問題の対策)
+  // この端末に無い分をスレッドへ合成する(別デバイスで履歴が見えない問題の対策)
   useEffect(() => {
     if (!isEdgeChatAvailable) return;
     let cancelled = false;
     fetchServerMessages().then((msgs) => {
       if (cancelled || msgs.length === 0) return;
-      setConvs((prev) => mergeServerHistory(prev, msgs));
+      setThread((prev) => {
+        const merged = mergeServerMessages(prev.messages, msgs);
+        return merged === prev.messages ? prev : { ...prev, messages: merged };
+      });
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // 新着時は最下部へ。初回は履歴の途中を見せないよう瞬間移動、以降はスムーズに
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentId, messages.length, streamingText]);
+    bottomRef.current?.scrollIntoView({
+      behavior: didFirstScroll.current ? "smooth" : "auto",
+    });
+    didFirstScroll.current = true;
+  }, [messages.length, streamingText]);
 
-  const sorted = useMemo(() => sortConversations(convs), [convs]);
-  const filtered = searchQuery.trim()
-    ? sorted.filter((c) => {
-        const q = searchQuery.trim().toLowerCase();
-        return (
-          c.title.toLowerCase().includes(q) ||
-          conversationDateLabel(c).includes(q)
-        );
-      })
-    : sorted;
+  // 過去分を上へ足したときは、直前に見ていた位置(下端からの距離)を維持する
+  useLayoutEffect(() => {
+    const el = scrollAreaRef.current;
+    if (el && prependAnchor.current !== null) {
+      el.scrollTop = el.scrollHeight - prependAnchor.current;
+    }
+    prependAnchor.current = null;
+  }, [visibleCount]);
 
-  function updateConv(id: string, patch: Partial<Conversation>) {
-    setConvs((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
-    );
+  const visibleMessages = messages.slice(-visibleCount);
+  const hasOlder = messages.length > visibleMessages.length;
+
+  /** 上端に近づいたら過去のメッセージを追加表示(LINEで上へ遡るのと同じ) */
+  function maybeLoadOlder() {
+    const el = scrollAreaRef.current;
+    if (!el || !hasOlder || prependAnchor.current !== null) return;
+    if (el.scrollTop > 80) return;
+    prependAnchor.current = el.scrollHeight - el.scrollTop;
+    setVisibleCount((c) => c + LOAD_CHUNK);
   }
 
   async function sendMessage(text: string) {
@@ -248,31 +231,8 @@ export default function Chat() {
       imageUrl: attachment?.url,
     };
 
-    // 会話がなければ最初のメッセージで新規作成(ChatGPTと同じ挙動)
-    let conv = current;
-    if (!conv) {
-      conv = {
-        id: uid(),
-        title: titleFrom([userMsg]),
-        messages: [userMsg],
-        updatedAt: new Date().toISOString(),
-      };
-      setConvs((prev) => [conv!, ...prev]);
-      setCurrentId(conv.id);
-    } else {
-      // 直前の更新(カードの無効化など)を消さないよう、常に最新の状態に追記する
-      setConvs((prev) =>
-        prev.map((c) =>
-          c.id === conv!.id
-            ? {
-                ...c,
-                messages: [...c.messages, userMsg],
-                updatedAt: new Date().toISOString(),
-              }
-            : c
-        )
-      );
-    }
+    // 直前の更新(カードの無効化など)を消さないよう、常に最新の状態に追記する
+    setThread((prev) => ({ ...prev, messages: [...prev.messages, userMsg] }));
 
     setInput("");
     setAttachments([]);
@@ -290,7 +250,7 @@ export default function Chat() {
         const res = await sendAiChat({
           message: trimmed,
           imagePath,
-          conversationId: conv.difyConversationId ?? null,
+          conversationId: thread.difyConversationId ?? null,
         });
         const assistantMsg: ChatMessage = {
           id: uid(),
@@ -302,19 +262,11 @@ export default function Chat() {
           suggestions: res.suggestions,
           safety: res.safety,
         };
-        setConvs((prev) =>
-          prev.map((c) =>
-            c.id === conv!.id
-              ? {
-                  ...c,
-                  messages: [...c.messages, assistantMsg],
-                  difyConversationId:
-                    res.conversation_id ?? c.difyConversationId,
-                  updatedAt: new Date().toISOString(),
-                }
-              : c
-          )
-        );
+        setThread((prev) => ({
+          ...prev,
+          messages: [...prev.messages, assistantMsg],
+          difyConversationId: res.conversation_id ?? prev.difyConversationId,
+        }));
         return;
       }
 
@@ -328,7 +280,7 @@ export default function Chat() {
           streakDays: data.streakDays,
         },
         (partial) => setStreamingText(partial),
-        conv.difyConversationId
+        thread.difyConversationId
       );
       const assistantMsg: ChatMessage = {
         id: uid(),
@@ -337,19 +289,12 @@ export default function Chat() {
         createdAt: new Date().toISOString(),
         uiType: "text",
       };
-      setConvs((prev) =>
-        prev.map((c) =>
-          c.id === conv!.id
-            ? {
-                ...c,
-                messages: [...c.messages, assistantMsg],
-                difyConversationId:
-                  reply.difyConversationId ?? c.difyConversationId,
-                updatedAt: new Date().toISOString(),
-              }
-            : c
-        )
-      );
+      setThread((prev) => ({
+        ...prev,
+        messages: [...prev.messages, assistantMsg],
+        difyConversationId:
+          reply.difyConversationId ?? prev.difyConversationId,
+      }));
 
     } catch (e) {
       console.error("chat sendMessage catch", e);
@@ -370,18 +315,12 @@ export default function Chat() {
    */
   function recalculateMeal(messageId: string, message: string) {
     if (sending) return;
-    setConvs((prev) =>
-      prev.map((c) =>
-        c.id === currentId
-          ? {
-              ...c,
-              messages: c.messages.map((m) =>
-                m.id === messageId ? { ...m, superseded: true } : m
-              ),
-            }
-          : c
-      )
-    );
+    setThread((prev) => ({
+      ...prev,
+      messages: prev.messages.map((m) =>
+        m.id === messageId ? { ...m, superseded: true } : m
+      ),
+    }));
     void sendMessage(message);
   }
 
@@ -390,8 +329,8 @@ export default function Chat() {
     messageId: string,
     decision: "confirm" | "reject"
   ) {
-    if (!current || confirmingId) return;
-    const msg = current.messages.find((m) => m.id === messageId);
+    if (confirmingId) return;
+    const msg = messages.find((m) => m.id === messageId);
     const pendingActionId = msg?.actionData?.pending_action_id as
       | string
       | undefined;
@@ -408,19 +347,12 @@ export default function Chat() {
         overrides: {},
       });
 
-      setConvs((prev) =>
-        prev.map((c) =>
-          c.id === current.id
-            ? {
-                ...c,
-                messages: c.messages.map((m) =>
-                  m.id === messageId ? { ...m, decision } : m
-                ),
-                updatedAt: new Date().toISOString(),
-              }
-            : c
-        )
-      );
+      setThread((prev) => ({
+        ...prev,
+        messages: prev.messages.map((m) =>
+          m.id === messageId ? { ...m, decision } : m
+        ),
+      }));
 
       if (decision === "confirm") {
         // 今日のPFC・履歴を最新化
@@ -437,48 +369,6 @@ export default function Chat() {
     }
   }
 
-
-  function newChat() {
-    const hadConversation = currentId !== null;
-    setCurrentId(null);
-    setDrawerOpen(false);
-    setMenuOpen(false);
-    setInput("");
-    toast(
-      hadConversation
-        ? "新しいチャットを開始しました"
-        : "すでに新しいチャットです"
-    );
-  }
-
-  function shareCurrent() {
-    if (!current) return;
-    navigator.clipboard
-      ?.writeText(conversationToText(current))
-      .then(() => toast("会話をコピーしました"))
-      .catch(() => toast.error("コピーできませんでした"));
-    setMenuOpen(false);
-  }
-
-  function togglePin() {
-    if (!current) return;
-    updateConv(current.id, { pinned: !current.pinned });
-    setMenuOpen(false);
-  }
-
-  function deleteCurrent() {
-    if (!current) return;
-    // confirm() はプレビュー環境でブロックされることがあるため2段階タップで確認
-    if (!deleteArmed) {
-      setDeleteArmed(true);
-      return;
-    }
-    setConvs((prev) => prev.filter((c) => c.id !== current.id));
-    setCurrentId(null);
-    setMenuOpen(false);
-    setDeleteArmed(false);
-    toast("会話を削除しました");
-  }
 
   const mode = getTrainerMode();
   const greetName = data.profile.name ? `${data.profile.name}さん` : "";
@@ -497,29 +387,7 @@ export default function Chat() {
           <p className="text-[24px] font-semibold tracking-[-0.02em]">
             FitCoach
           </p>
-          <button
-            aria-label="会話を検索"
-            onClick={() => {
-              setSearchOpen((v) => !v);
-              setSearchQuery("");
-            }}
-            className="flex h-10 w-10 items-center justify-center rounded-full transition-transform active:scale-95"
-          >
-            <Search className="h-5 w-5" strokeWidth={2} />
-          </button>
         </div>
-
-        {searchOpen && (
-          <div className="animate-fade-in px-4 pt-3">
-            <input
-              autoFocus
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="検索"
-              className="h-10 w-full rounded-full bg-muted px-4 text-[15px] placeholder:text-muted-foreground focus:outline-none"
-            />
-          </div>
-        )}
 
         <nav className="mt-4 space-y-0.5 px-3">
           {/* 記録(タップで食事・筋トレ・体重のタブを展開) */}
@@ -567,47 +435,7 @@ export default function Chat() {
           </div>
         </nav>
 
-        <p className="mt-5 px-5 text-[14px] font-semibold text-foreground">
-          最近
-        </p>
-        <div className="mt-1 flex-1 overflow-y-auto px-3 pb-24">
-          {filtered.length === 0 && (
-            <p className="px-2 py-4 text-[14px] text-muted-foreground">
-              {searchQuery ? "見つかりませんでした" : "まだ会話がありません"}
-            </p>
-          )}
-          {filtered.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => {
-                setCurrentId(c.id);
-                setDrawerOpen(false);
-              }}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-[14px] px-3 py-3 text-left text-[16px] transition-colors",
-                c.id === currentId ? "bg-muted" : "hover:bg-muted/60"
-              )}
-            >
-              <span className="min-w-0 flex-1 truncate [font-variant-numeric:tabular-nums]">
-                {conversationDateLabel(c)}
-              </span>
-              {c.pinned && (
-                <Pin className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.8} />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* 下部フローティング: チャット(設定はヘッダー右上へ移動) */}
-        <div className="absolute inset-x-4 bottom-[max(calc(env(safe-area-inset-bottom,0px)+0.75rem),1.25rem)]">
-          <button
-            onClick={newChat}
-            className="flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-[17px] font-medium text-primary-foreground transition-transform active:scale-95"
-          >
-            <SquarePen className="h-5 w-5" strokeWidth={2} />
-            チャット
-          </button>
-        </div>
+        <div className="flex-1" />
       </aside>
 
       {/* ===== メイン画面(ドロワー時に右へスライド) ===== */}
@@ -718,54 +546,12 @@ export default function Chat() {
           }}
         />
 
-        {/* ...メニュー(すりガラスのポップオーバー) */}
-        {menuPopover.mounted && current && (
-          <>
-            {!menuPopover.closing && (
-              <button
-                aria-label="メニューを閉じる"
-                className="absolute inset-0 z-40"
-                onClick={() => setMenuOpen(false)}
-              />
-            )}
-            <div
-              className={cn(
-                "absolute right-3 top-[calc(env(safe-area-inset-top,0px)+3.5rem)] z-50 w-[270px] origin-top-right overflow-hidden rounded-[16px] border border-black/5 bg-card/85 shadow-[0_12px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl",
-                menuPopover.closing ? "animate-pop-out" : "animate-pop-in"
-              )}
-            >
-              <p className="truncate border-b border-black/5 px-4 py-2.5 text-[13px] text-muted-foreground [font-variant-numeric:tabular-nums]">
-                {conversationDateLabel(current)}のチャット
-              </p>
-              <MenuItem
-                label="共有する"
-                icon={<Upload className="h-5 w-5" strokeWidth={1.8} />}
-                onClick={shareCurrent}
-              />
-              <MenuItem
-                label={current.pinned ? "ピン留めを解除" : "ピン留めする"}
-                icon={
-                  current.pinned ? (
-                    <PinOff className="h-5 w-5" strokeWidth={1.8} />
-                  ) : (
-                    <Pin className="h-5 w-5" strokeWidth={1.8} />
-                  )
-                }
-                onClick={togglePin}
-              />
-              <MenuItem
-                label={deleteArmed ? "タップして完全に削除" : "削除する"}
-                icon={<Trash2 className="h-5 w-5" strokeWidth={1.8} />}
-                destructive
-                emphasized={deleteArmed}
-                onClick={deleteCurrent}
-              />
-            </div>
-          </>
-        )}
-
-        {/* メッセージ領域 */}
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-3">
+        {/* メッセージ領域(全履歴が1本のスレッドとして積み重なる) */}
+        <div
+          ref={scrollAreaRef}
+          onScroll={maybeLoadOlder}
+          className="flex-1 space-y-5 overflow-y-auto px-5 py-3"
+        >
           {messages.length === 0 && streamingText === null && (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
               <h2 className="text-[24px] leading-[1.3] [text-wrap:balance]">
@@ -784,47 +570,60 @@ export default function Chat() {
             </div>
           )}
 
-          {messages.map((m) =>
-            m.role === "user" ? (
-              <UserMessage key={m.id} content={m.content} imageUrl={m.imageUrl} />
-            ) : (
-              <div key={m.id}>
-                <AssistantMessage content={sanitizeAssistantText(m.content)} />
-                {m.uiType && m.uiType !== "text" && (
-                  <ChatActionCard
-                    uiType={m.uiType as UiType}
-                    actionData={m.actionData}
-                    safety={m.safety}
-                    decision={m.decision}
-                    superseded={m.superseded}
-                    busy={confirmingId !== null}
-                    onConfirm={() => handleDecision(m.id, "confirm")}
-                    onReject={() => handleDecision(m.id, "reject")}
-                    onRecalculate={(message) => recalculateMeal(m.id, message)}
-                  />
-                )}
-                {m.suggestions && m.suggestions.length > 0 && !m.decision && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {m.suggestions
-                      .filter(
-                        // 確認カードのボタンと重複する候補は出さない
-                        (s) =>
-                          !DUPLICATE_OF_CARD_BUTTONS.some((d) => s.includes(d))
-                      )
-                      .map((s) => (
-                        <button
-                          key={s}
-                          onClick={() => void sendMessage(s)}
-                          className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </div>
-            )
-          )}
+          {visibleMessages.map((m, i) => (
+            <Fragment key={m.id}>
+              {/* 日付が変わる箇所にLINE風のセパレーターを挟む */}
+              {(i === 0 ||
+                !isSameDay(visibleMessages[i - 1].createdAt, m.createdAt)) && (
+                <DaySeparator label={dayLabel(m.createdAt)} />
+              )}
+              {m.role === "user" ? (
+                <UserMessage content={m.content} imageUrl={m.imageUrl} />
+              ) : (
+                <div>
+                  <AssistantMessage content={sanitizeAssistantText(m.content)} />
+                  {m.uiType && m.uiType !== "text" && (
+                    <ChatActionCard
+                      uiType={m.uiType as UiType}
+                      actionData={m.actionData}
+                      safety={m.safety}
+                      decision={m.decision}
+                      superseded={m.superseded}
+                      busy={confirmingId !== null}
+                      onConfirm={() => handleDecision(m.id, "confirm")}
+                      onReject={() => handleDecision(m.id, "reject")}
+                      onRecalculate={(message) => recalculateMeal(m.id, message)}
+                    />
+                  )}
+                  {/* 候補チップは最新メッセージにだけ出す(過去の履歴に残さない) */}
+                  {m.suggestions &&
+                    m.suggestions.length > 0 &&
+                    !m.decision &&
+                    m.id === messages[messages.length - 1]?.id && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {m.suggestions
+                          .filter(
+                            // 確認カードのボタンと重複する候補は出さない
+                            (s) =>
+                              !DUPLICATE_OF_CARD_BUTTONS.some((d) =>
+                                s.includes(d)
+                              )
+                          )
+                          .map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => void sendMessage(s)}
+                              className="rounded-full border bg-card px-4 py-2 text-[13px] text-foreground transition-transform active:scale-[0.97]"
+                            >
+                              {s}
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                </div>
+              )}
+            </Fragment>
+          ))}
 
           {streamingText !== null && (
             <AssistantMessage
@@ -1196,31 +995,14 @@ function SidebarSubLink({
   );
 }
 
-function MenuItem({
-  label,
-  icon,
-  onClick,
-  destructive = false,
-  emphasized = false,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  destructive?: boolean;
-  emphasized?: boolean;
-}) {
+/** LINE風の日付セパレーター(その日の最初のメッセージの上に出るチップ) */
+function DaySeparator({ label }: { label: string }) {
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center justify-between border-t border-black/5 px-4 py-3.5 text-left text-[16px] transition-colors active:bg-muted/60",
-        destructive ? "text-destructive" : "text-foreground",
-        emphasized && "bg-destructive/10 font-semibold"
-      )}
-    >
-      {label}
-      {icon}
-    </button>
+    <div className="flex justify-center py-1">
+      <span className="rounded-full bg-muted px-3.5 py-1 text-[12px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+        {label}
+      </span>
+    </div>
   );
 }
 
