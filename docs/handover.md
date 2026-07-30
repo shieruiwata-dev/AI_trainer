@@ -73,9 +73,13 @@
   設定はチャットのオーバーレイ内にあるため、`useSelectedTrainer` が CustomEvent
   `fitcoach:trainer-changed` を購読して裏のチャットへ即時反映する。
   表示箇所: ヘッダー(32px)+ 返信の左(34px、連続返信では先頭のみ=LINEと同じ)+ 思考中インジケーター。
-  画像は `src/assets/trainers/{id}.(png|jpg|jpeg|webp)` に置く(`flow`/`fresh`/`power`/`hard`)。
+  画像は `src/assets/trainers/{id}.webp`(`flow`=緑ウェア女性 / `fresh`=黒ウェア男性 /
+  `power`=赤黒ウェア女性 / `hard`=赤黒ウェア男性)。256×256・9〜17KBの顔アイコン。
+  元の全身画像は `originals/` にあり、`scripts/crop-trainer-avatars.mjs`(要 `npm i sharp`)の
+  cx/cy/size を変えれば切り出し直せる。**元画像は必ずサブフォルダに置く**
+  (`import.meta.glob` は直下のみ非再帰で見るため、直下に置くとバンドルに巻き込まれる)。
   `import.meta.glob` で存在するものだけ拾うので**未配置でもビルドは通り**、頭文字にフォールバックする。
-  詳細は `src/assets/trainers/README.md`。※2026-07-30時点で画像ファイルは未配置(ユーザーから受領待ち)
+  詳細は `src/assets/trainers/README.md`
 - **思考中インジケーター**(`ThinkingIndicator`): 応答待ちの間、Action Blueの3点が波打つ
   (tailwind `animate-thinking-dot`、1.3s ease-ios、各点0.16sずらし)。固まったと誤解されないための表示。
   本文が1文字でも来たら通常の逐次表示に切り替わる。**3.5秒以上待たせるときだけ**説明を添える
