@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowUp,
+  Camera,
   Check,
   ChevronDown,
   ClipboardList,
@@ -13,7 +14,6 @@ import {
   Pin,
   PinOff,
   ImagePlus,
-  Plus,
   Scale,
   Search,
   Settings,
@@ -35,6 +35,7 @@ import {
   sendAiChat,
   type UiType,
 } from "@/lib/aiChat";
+import { CameraSheet } from "@/components/CameraSheet";
 import { ChatActionCard } from "@/components/ChatActionCard";
 import { MealRecordPage } from "@/components/MealRecordPage";
 import { CaloriesPanel } from "@/components/CaloriesPanel";
@@ -114,6 +115,7 @@ export default function Chat() {
   useEffect(() => {
     if (!menuOpen) setDeleteArmed(false);
   }, [menuOpen]);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -204,9 +206,13 @@ export default function Chat() {
     );
   }
 
-  async function sendMessage(text: string) {
+  async function sendMessage(
+    text: string,
+    // カメラシートなど、添付stateを経由せずに画像を直接渡す場合に使う
+    override?: { file: File; previewUrl: string }
+  ) {
     const trimmed = text.trim();
-    const file = attachedFile;
+    const file = override?.file ?? attachedFile;
     if ((!trimmed && !file) || sending) return;
 
     console.log("chat sendMessage called", { hasMessage: true });
@@ -217,7 +223,7 @@ export default function Chat() {
       role: "user",
       content: trimmed || (file ? "(画像を送信しました)" : ""),
       createdAt: new Date().toISOString(),
-      imageUrl: attachedPreview ?? undefined,
+      imageUrl: override?.previewUrl ?? attachedPreview ?? undefined,
     };
 
     // 会話がなければ最初のメッセージで新規作成(ChatGPTと同じ挙動)
@@ -624,6 +630,19 @@ export default function Chat() {
           />
         )}
 
+        {/* カメラ撮影シート(食事の写真 → グラム数任意入力 → 送信) */}
+        <CameraSheet
+          open={cameraOpen}
+          onClose={() => setCameraOpen(false)}
+          onSend={(file, previewUrl, grams) => {
+            setCameraOpen(false);
+            const text = grams
+              ? `写真の食事を記録して。量は約${grams}gです`
+              : "写真の食事を記録して";
+            void sendMessage(text, { file, previewUrl });
+          }}
+        />
+
         {/* ...メニュー(すりガラスのポップオーバー) */}
         {menuPopover.mounted && current && (
           <>
@@ -821,11 +840,11 @@ export default function Chat() {
               <ImagePlus className="h-6 w-6" strokeWidth={1.8} />
             </IconButton>
             <IconButton
-              label="質問の候補"
-              onClick={() => setShowSuggestions((v) => !v)}
+              label="カメラで食事を撮影"
+              onClick={() => setCameraOpen(true)}
               className="mb-0.5"
             >
-              <Plus className="h-6 w-6" strokeWidth={1.8} />
+              <Camera className="h-6 w-6" strokeWidth={1.8} />
             </IconButton>
             <textarea
               value={input}
