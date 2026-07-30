@@ -24,6 +24,8 @@ export interface AppData {
   todayCarbsG: number;
   todayMeals: MealLog[];
   todayWorkouts: WorkoutLog[];
+  /** 直近のセット記録すべて(日付つき) */
+  workoutSets: WorkoutSetRecord[];
   todayWorkoutSets: WorkoutSetRecord[];
   streakDays: number;
   reload: () => Promise<void>;
@@ -53,9 +55,7 @@ export function useAppData(): AppData {
   const [weights, setWeights] = useState<WeightLog[]>([]);
   const [meals, setMeals] = useState<MealLog[]>([]);
   const [workouts, setWorkouts] = useState<WorkoutLog[]>([]);
-  const [todayWorkoutSets, setTodayWorkoutSets] = useState<WorkoutSetRecord[]>(
-    []
-  );
+  const [workoutSets, setWorkoutSets] = useState<WorkoutSetRecord[]>([]);
 
   const reload = useCallback(async () => {
     const s = await getStore();
@@ -65,13 +65,13 @@ export function useAppData(): AppData {
       s.listWeightLogs(),
       s.listMealLogs(),
       s.listWorkoutLogs(),
-      s.listTodayWorkoutSets(),
+      s.listRecentWorkoutSets(),
     ]);
     setProfile(p);
     setWeights(w);
     setMeals(m);
     setWorkouts(wo);
-    setTodayWorkoutSets(sets);
+    setWorkoutSets(sets);
     setLoading(false);
   }, []);
 
@@ -84,6 +84,7 @@ export function useAppData(): AppData {
   const derived = useMemo(() => {
     const todayMeals = meals.filter((m) => m.date === today);
     const todayWorkouts = workouts.filter((w) => w.date === today);
+    const todayWorkoutSets = workoutSets.filter((s) => s.date === today);
     const todayCalories = todayMeals.reduce((sum, m) => sum + m.calories, 0);
     const todayProteinG = todayMeals.reduce(
       (sum, m) => sum + (m.proteinG ?? 0),
@@ -106,6 +107,7 @@ export function useAppData(): AppData {
     return {
       todayMeals,
       todayWorkouts,
+      todayWorkoutSets,
       todayCalories,
       todayProteinG,
       todayFatG,
@@ -113,7 +115,7 @@ export function useAppData(): AppData {
       latestWeightKg,
       streakDays,
     };
-  }, [weights, meals, workouts, today]);
+  }, [weights, meals, workouts, workoutSets, today]);
 
   return {
     loading,
@@ -122,7 +124,7 @@ export function useAppData(): AppData {
     weights,
     meals,
     workouts,
-    todayWorkoutSets,
+    workoutSets,
     ...derived,
     reload,
     store,

@@ -32,8 +32,8 @@ export interface DataStore {
   addWorkoutLog(log: Omit<WorkoutLog, "id">): Promise<void>;
   deleteWorkoutLog(id: string): Promise<void>;
 
-  /** 今日のセット記録(AIチャット経由で workout_sets に保存されたもの) */
-  listTodayWorkoutSets(): Promise<WorkoutSetRecord[]>;
+  /** 直近のセット記録(AIチャット経由で workout_sets に保存されたもの) */
+  listRecentWorkoutSets(): Promise<WorkoutSetRecord[]>;
 }
 
 // ---------- ローカルストレージ実装 ----------
@@ -119,7 +119,7 @@ class LocalStore implements DataStore {
     );
   }
 
-  async listTodayWorkoutSets(): Promise<WorkoutSetRecord[]> {
+  async listRecentWorkoutSets(): Promise<WorkoutSetRecord[]> {
     // セット単位の記録はAI(Supabase)経由のみ。ローカルモードでは空
     return [];
   }
@@ -307,6 +307,7 @@ class SupabaseStore implements DataStore {
       category: WORKOUT_CATEGORIES.includes(r.focus_area as "strength")
         ? (r.focus_area as WorkoutLog["category"])
         : "strength",
+      focusArea: r.focus_area,
       name: r.title ?? "トレーニング",
       detail:
         r.estimated_minutes != null ? `${r.estimated_minutes}分` : undefined,
@@ -332,24 +333,23 @@ class SupabaseStore implements DataStore {
     if (error) throw error;
   }
 
-  async listTodayWorkoutSets(): Promise<WorkoutSetRecord[]> {
+  async listRecentWorkoutSets(): Promise<WorkoutSetRecord[]> {
     const { data, error } = await this.db
       .from("workout_sets")
       .select("*")
       .order("created_at", { ascending: true })
-      .limit(300);
+      .limit(500);
     if (error) throw error;
-    const today = todayStr();
-    return (data ?? [])
-      .filter((r) => toLocalDate(r.completed_at ?? r.created_at) === today)
-      .map((r) => ({
-        id: r.id,
-        exerciseName: r.exercise_name,
-        setNumber: r.set_number,
-        weightKg: r.actual_weight_kg ?? r.target_weight_kg,
-        reps: r.actual_reps ?? r.target_reps,
-        completedAt: r.completed_at,
-      }));
+    return (data ?? []).map((r) => ({
+      id: r.id,
+      sessionId: r.session_id,
+      date: toLocalDate(r.completed_at ?? r.created_at),
+      exerciseName: r.exercise_name,
+      setNumber: r.set_number,
+      weightKg: r.actual_weight_kg ?? r.target_weight_kg,
+      reps: r.actual_reps ?? r.target_reps,
+      completedAt: r.completed_at,
+    }));
   }
 }
 

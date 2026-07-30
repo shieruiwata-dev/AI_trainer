@@ -41,14 +41,20 @@ export interface WorkoutLog {
   id: string;
   date: string;
   category: WorkoutCategory;
+  /** サーバーの focus_area 生値(shoulders/chest/back/legs/arms/core 等)。部位別集計に使用 */
+  focusArea?: string | null;
   name: string;
   detail?: string; // 例: "3セット x 10回" / "30分"
   note?: string;
 }
 
-/** 今日のセット記録(workout_sets 由来)。上部スワイプカードに表示 */
+/** セット記録(workout_sets 由来)。上部カード・筋トレ記録ページに表示 */
 export interface WorkoutSetRecord {
   id: string;
+  /** 紐づくセッション(workout_sessions)のID。部位の特定に使用 */
+  sessionId: string | null;
+  /** ローカル日付 YYYY-MM-DD */
+  date: string;
   exerciseName: string;
   setNumber: number;
   weightKg: number | null;
