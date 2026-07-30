@@ -20,11 +20,18 @@ import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
 import {
   confirmAction,
   confirmGoal,
+  getPayload,
   isEdgeChatAvailable,
   sanitizeAssistantText,
   sendAiChat,
   type UiType,
 } from "@/lib/aiChat";
+import {
+  extractOnboardingFields,
+  loadOnboardingState,
+  mergeOnboardingState,
+  saveOnboardingState,
+} from "@/lib/onboardingState";
 import SettingsPage from "@/pages/Settings";
 import { CameraSheet } from "@/components/CameraSheet";
 import { ChatActionCard } from "@/components/ChatActionCard";
@@ -148,7 +155,11 @@ export default function Chat() {
 
   const messages = thread.messages;
 
+  // 目標設計オンボーディングで収集した項目(端末に保持し、毎回Difyへ渡す)
+  const onboardingStateRef = useRef(loadOnboardingState());
+
   useEffect(() => {
+
     saveThread(thread);
   }, [thread]);
 
@@ -244,12 +255,38 @@ export default function Chat() {
           : null;
 
       if (isEdgeChatAvailable) {
+        // ユーザーの回答から拾える項目をオンボーディング状態にマージ
+        const nextState = mergeOnboardingState(
+          onboardingStateRef.current,
+          extractOnboardingFields(trimmed)
+        );
+        onboardingStateRef.current = nextState;
+        saveOnboardingState(nextState);
+
         // Supabase Edge Function `ai-chat` 経由
         const res = await sendAiChat({
           message: trimmed,
           imagePath,
           conversationId: thread.difyConversationId ?? null,
+          onboardingState:
+            Object.keys(nextState).length > 0
+              ? (nextState as Record<string, unknown>)
+              : null,
         });
+
+        // Dify 側が収集した項目があればマージ
+        const collected =
+          ((res.data as Record<string, unknown> | null)?.collected_fields as
+            | Record<string, unknown>
+            | undefined) ??
+          ((getPayload(res.data as Record<string, unknown> | null)
+            .collected_fields) as Record<string, unknown> | undefined);
+        if (collected) {
+          const merged = mergeOnboardingState(onboardingStateRef.current, collected);
+          onboardingStateRef.current = merged;
+          saveOnboardingState(merged);
+        }
+
         const assistantMsg: ChatMessage = {
           id: uid(),
           role: "assistant",

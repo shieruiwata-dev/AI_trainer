@@ -49,18 +49,30 @@ export async function sendAiChat(params: {
   message: string;
   imagePath?: string | null;
   conversationId?: string | null;
+  /** 目標設計オンボーディングで収集済みの項目 */
+  onboardingState?: Record<string, unknown> | null;
 }): Promise<AiChatResponse> {
   try {
+    const goalContext = params.onboardingState
+      ? { onboarding_state: params.onboardingState }
+      : null;
     console.log("ai-chat invoke start", {
       functionName: "ai-chat",
       hasMessage: Boolean(params.message.trim()),
       hasImage: Boolean(params.imagePath),
+      goalContext,
     });
     const { data, error } = await supabase.functions.invoke("ai-chat", {
       body: {
         message: params.message.trim(),
         image_path: params.imagePath ?? null,
         conversation_id: params.conversationId ?? null,
+        ...(goalContext
+          ? {
+              goal_context: goalContext,
+              profile_context: goalContext,
+            }
+          : {}),
       },
     });
 
