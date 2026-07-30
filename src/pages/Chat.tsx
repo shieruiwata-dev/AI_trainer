@@ -155,7 +155,11 @@ export default function Chat() {
 
   const messages = thread.messages;
 
+  // 目標設計オンボーディングで収集した項目(端末に保持し、毎回Difyへ渡す)
+  const onboardingStateRef = useRef(loadOnboardingState());
+
   useEffect(() => {
+
     saveThread(thread);
   }, [thread]);
 
