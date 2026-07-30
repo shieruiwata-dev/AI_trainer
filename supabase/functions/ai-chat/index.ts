@@ -81,6 +81,31 @@ const asStringArray = (value: unknown): string[] =>
     ? value.map((item) => asString(item)).filter((item) => item.length > 0)
     : [];
 
+const parseJsonObject = (value: unknown): JsonObject => {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value as JsonObject;
+  const text = asString(value);
+  if (!text) return {};
+  try {
+    return asObject(JSON.parse(text));
+  } catch {
+    return {};
+  }
+};
+
+const mergeContextJson = (baseJson: string, incoming: unknown): string => {
+  const base = parseJsonObject(baseJson);
+  const extra = parseJsonObject(incoming);
+  const onboardingState = parseJsonObject(extra.onboarding_state);
+  const merged: JsonObject = { ...base, ...extra };
+  if (Object.keys(onboardingState).length > 0) {
+    merged.onboarding_state = {
+      ...parseJsonObject(base.onboarding_state),
+      ...onboardingState,
+    };
+  }
+  return JSON.stringify(merged);
+};
+
 const toFiniteNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -439,6 +464,9 @@ Deno.serve(async (req) => {
     if (!message && !imagePath) return errorResponse(400, "メッセージを入力してください。");
 
     const context = await collectContext(serviceClient, userId);
+    context.goal_context = mergeContextJson(context.goal_context, body.goal_context);
+    context.profile_context = mergeContextJson(context.profile_context, body.profile_context);
+    console.log("ai_chat_goal_context_before_dify", context.goal_context);
     const signedImageUrl = imagePath ? await createSignedImageUrl(serviceClient, imagePath) : null;
     const difyPayload: JsonObject = {
       inputs: {
