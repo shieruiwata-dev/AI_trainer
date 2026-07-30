@@ -126,7 +126,7 @@ export function extractOnboardingFields(text: string): Partial<OnboardingState> 
   }
 
   if (/(減量|ダイエット|痩せ|やせ|絞|cut)/i.test(t)) out.purpose_type = "cut";
-  else if (/(増量|бул|バルク|筋肥大|大きく|bulk)/i.test(t)) out.purpose_type = "bulk";
+  else if (/(増量|バルク|筋肥大|大きく|bulk)/i.test(t)) out.purpose_type = "bulk";
   else if (/(維持|キープ|maintain)/i.test(t)) out.purpose_type = "maintain";
 
   return out;
