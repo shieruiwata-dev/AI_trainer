@@ -156,7 +156,11 @@ export async function confirmAction(params: {
   return (data ?? {}) as ConfirmActionResult;
 }
 
-/** 目標提案カードの「この目標で始める」→ confirm-goal。data.ok === true のみ成功扱い */
+/**
+ * 目標提案カードの「この目標で始める」→ confirm-goal。
+ * invoke の error がなければ成功扱い(data.ok === true / status: confirmed も同様)。
+ * 明示的に data.error / ok === false が返ったときだけ失敗にする。
+ */
 export async function confirmGoal(
   proposal: Record<string, unknown>
 ): Promise<ConfirmActionResult> {
@@ -169,11 +173,17 @@ export async function confirmGoal(
     throw new Error("目標の保存に失敗しました。もう一度お試しください。");
   }
 
-  const result = (data ?? {}) as ConfirmActionResult & { ok?: boolean };
-  if (result.ok === true) return result;
+  const result = (data ?? {}) as ConfirmActionResult & {
+    ok?: boolean;
+    error?: string;
+  };
 
-  console.error("confirm-goal unexpected response", data);
-  throw new Error("目標の保存に失敗しました。もう一度お試しください。");
+  if (result.ok === false || (result.ok !== true && result.error)) {
+    console.error("confirm-goal failed response", data);
+    throw new Error("目標の保存に失敗しました。もう一度お試しください。");
+  }
+
+  return result;
 }
 
 
