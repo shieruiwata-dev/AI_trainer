@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { CaloriesPanel } from "@/components/CaloriesPanel";
 import type { AppData } from "@/hooks/useAppData";
 import { MEAL_TYPE_LABEL } from "@/lib/types";
 import { todayStr, cn } from "@/lib/utils";
@@ -56,7 +57,16 @@ export function MealRecordPage({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-3">
+      <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-3 pt-1">
+        {/* ===== 今日のカロリー・PFC(チャット上部カードと同一) ===== */}
+        <CaloriesPanel
+          todayCalories={data.todayCalories}
+          profile={data.profile}
+          proteinG={data.todayProteinG}
+          fatG={data.todayFatG}
+          carbsG={data.todayCarbsG}
+        />
+
         {/* ===== カレンダー + その日の食事 ===== */}
         <div className="flex gap-3">
           <MiniCalendar
