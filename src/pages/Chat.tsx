@@ -41,6 +41,7 @@ import { MealRecordPage } from "@/components/MealRecordPage";
 import { CaloriesPanel } from "@/components/CaloriesPanel";
 import { WorkoutSetsCard } from "@/components/WorkoutSetsCard";
 import { WorkoutRecordPage } from "@/components/WorkoutRecordPage";
+import { composeImages } from "@/lib/composeImages";
 import { uploadChatImage } from "@/lib/uploadImage";
 import {
   fetchServerMessages,
@@ -99,8 +100,10 @@ export default function Chat() {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
-  const [attachedPreview, setAttachedPreview] = useState<string | null>(null);
+  // 入力欄に添付中の画像(カメラ撮影 / ライブラリ選択)。送信で消費する
+  const [attachments, setAttachments] = useState<
+    { id: string; file: File; url: string }[]
+  >([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sendError, setSendError] = useState<{ message: string; context: string } | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -176,16 +179,6 @@ export default function Chat() {
   }, []);
 
   useEffect(() => {
-    if (!attachedFile) {
-      setAttachedPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(attachedFile);
-    setAttachedPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [attachedFile]);
-
-  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [currentId, messages.length, streamingText]);
 
@@ -206,24 +199,35 @@ export default function Chat() {
     );
   }
 
-  async function sendMessage(
-    text: string,
-    // カメラシートなど、添付stateを経由せずに画像を直接渡す場合に使う
-    override?: { file: File; previewUrl: string }
-  ) {
+  async function sendMessage(text: string) {
     const trimmed = text.trim();
-    const file = override?.file ?? attachedFile;
-    if ((!trimmed && !file) || sending) return;
+    if ((!trimmed && attachments.length === 0) || sending) return;
 
     console.log("chat sendMessage called", { hasMessage: true });
     setSendError(null);
     setShowSuggestions(false);
+    setSending(true);
+
+    // 複数枚の添付は1枚に合成してから送る(ai-chatが受け取れる画像は1枚のため)
+    let attachment: { file: File; url: string } | null = null;
+    if (attachments.length === 1) {
+      attachment = attachments[0];
+    } else if (attachments.length > 1) {
+      try {
+        attachment = await composeImages(attachments);
+      } catch {
+        toast.error("画像の準備に失敗しました。もう一度お試しください");
+        setSending(false);
+        return;
+      }
+    }
+
     const userMsg: ChatMessage = {
       id: uid(),
       role: "user",
-      content: trimmed || (file ? "(画像を送信しました)" : ""),
+      content: trimmed || (attachment ? "(画像を送信しました)" : ""),
       createdAt: new Date().toISOString(),
-      imageUrl: override?.previewUrl ?? attachedPreview ?? undefined,
+      imageUrl: attachment?.url,
     };
 
     // 会話がなければ最初のメッセージで新規作成(ChatGPTと同じ挙動)
@@ -245,14 +249,15 @@ export default function Chat() {
     }
 
     setInput("");
-    setAttachedFile(null);
-    setSending(true);
+    setAttachments([]);
     setStreamingText("");
 
     try {
       // デモビルドではアップロード先が無いためスキップ(プレビュー表示のみ)
       const imagePath =
-        file && isEdgeChatAvailable ? await uploadChatImage(file) : null;
+        attachment && isEdgeChatAvailable
+          ? await uploadChatImage(attachment.file)
+          : null;
 
       if (isEdgeChatAvailable) {
         // Supabase Edge Function `ai-chat` 経由
@@ -630,13 +635,16 @@ export default function Chat() {
           />
         )}
 
-        {/* カメラ撮影シート(食事の写真を撮影 → 追加撮影 → 送信) */}
+        {/* カメラ撮影シート(撮影 → 追加撮影 → 入力欄に添付) */}
         <CameraSheet
           open={cameraOpen}
           onClose={() => setCameraOpen(false)}
-          onSend={(file, previewUrl) => {
+          onAdd={(shots) => {
             setCameraOpen(false);
-            void sendMessage("写真の食事を記録して", { file, previewUrl });
+            setAttachments((prev) => [
+              ...prev,
+              ...shots.map((s) => ({ id: uid(), ...s })),
+            ]);
           }}
         />
 
@@ -779,24 +787,31 @@ export default function Chat() {
           </div>
         )}
 
-        {/* 添付画像プレビュー */}
-        {attachedPreview && (
-          <div className="px-4 pb-2">
-            <div className="relative inline-block">
-              <img
-                src={attachedPreview}
-                alt="添付画像のプレビュー"
-                className="h-20 w-20 rounded-[12px] object-cover"
-              />
-              <button
-                type="button"
-                aria-label="添付を取り消す"
-                onClick={() => setAttachedFile(null)}
-                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"
-              >
-                <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-              </button>
-            </div>
+        {/* 添付画像プレビュー(入力欄の上。メッセージと一緒に送信される) */}
+        {attachments.length > 0 && (
+          <div className="no-scrollbar flex gap-3 overflow-x-auto px-4 pb-2 pt-1">
+            {attachments.map((a, i) => (
+              <div key={a.id} className="relative shrink-0 animate-pop-in">
+                <img
+                  src={a.url}
+                  alt={`添付画像 ${i + 1}枚目`}
+                  className="h-20 w-20 rounded-[12px] border object-cover"
+                />
+                <button
+                  type="button"
+                  aria-label={`${i + 1}枚目の添付を取り消す`}
+                  onClick={() =>
+                    setAttachments((prev) => {
+                      URL.revokeObjectURL(a.url);
+                      return prev.filter((x) => x.id !== a.id);
+                    })
+                  }
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -826,7 +841,10 @@ export default function Chat() {
                   toast.error("画像は8MB以下にしてください");
                   return;
                 }
-                setAttachedFile(f);
+                setAttachments((prev) => [
+                  ...prev,
+                  { id: uid(), file: f, url: URL.createObjectURL(f) },
+                ]);
               }}
             />
             <IconButton
@@ -870,7 +888,7 @@ export default function Chat() {
             <button
               type="button"
               onClick={() => void sendMessage(input)}
-              disabled={sending || (!input.trim() && !attachedFile)}
+              disabled={sending || (!input.trim() && attachments.length === 0)}
               aria-label="送信"
               className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-40"
             >

@@ -3,7 +3,7 @@ import { Camera, ChevronLeft, Images, SwitchCamera, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-interface Shot {
+export interface Shot {
   file: File;
   url: string;
 }
@@ -12,19 +12,19 @@ interface Shot {
  * 食事撮影シート。
  * - 下からスライドして表示され、カメラのライブプレビューを出す
  * - 撮影すると写真が上部へスライドし、「追加で撮る」で複数枚撮影できる
- * - 送信時、複数枚の場合は1枚の画像に合成して送る
- *   (バックエンドの ai-chat が受け取れる画像は1枚のため)
+ * - 「追加」でチャット入力欄に添付され、メッセージと一緒に送れる(ここでは送信しない)
  * - カメラが使えない環境(権限なし・非対応)ではファイル選択(iOSでは標準カメラ起動)に
  *   フォールバックする
  */
 export function CameraSheet({
   open,
   onClose,
-  onSend,
+  onAdd,
 }: {
   open: boolean;
   onClose: () => void;
-  onSend: (file: File, previewUrl: string) => void;
+  /** 撮影した写真をチャット入力欄の添付に渡す */
+  onAdd: (shots: Shot[]) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
@@ -32,11 +32,12 @@ export function CameraSheet({
   const [facing, setFacing] = useState<"environment" | "user">("environment");
   const [cameraError, setCameraError] = useState(false);
   const [shots, setShots] = useState<Shot[]>([]);
-  const [sending, setSending] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
+  // チャットへ渡した写真のURLは呼び出し元が使うので破棄しない
+  const handedOffRef = useRef(false);
 
   // 閉じるときもスライドアウトさせるためのマウント管理
   useEffect(() => {
@@ -54,11 +55,13 @@ export function CameraSheet({
   useEffect(() => {
     if (mounted) return;
     setShots((prev) => {
-      prev.forEach((s) => URL.revokeObjectURL(s.url));
+      if (!handedOffRef.current) {
+        prev.forEach((s) => URL.revokeObjectURL(s.url));
+      }
+      handedOffRef.current = false;
       return [];
     });
     setPhase("live");
-    setSending(false);
     setCameraError(false);
     setFacing("environment");
   }, [mounted]);
@@ -157,17 +160,10 @@ export function CameraSheet({
     });
   }
 
-  async function send() {
-    if (shots.length === 0 || sending) return;
-    setSending(true);
-    try {
-      const { file, url } =
-        shots.length === 1 ? shots[0] : await composeShots(shots);
-      onSend(file, url);
-    } catch {
-      toast.error("画像の準備に失敗しました。もう一度お試しください");
-      setSending(false);
-    }
+  function add() {
+    if (shots.length === 0) return;
+    handedOffRef.current = true;
+    onAdd(shots);
   }
 
   if (!mounted) return null;
@@ -292,32 +288,30 @@ export function CameraSheet({
           )}
         </div>
 
-        {/* 撮影後: 追加で撮る / 送信 */}
+        {/* 撮影後: 追加で撮る / チャットに追加 */}
         {phase === "review" && (
           <div className="flex min-h-0 flex-1 animate-fade-in flex-col px-5 pb-5 pt-4">
             <p className="text-[15px] font-semibold">
-              この写真を送信しますか?
+              {shots.length > 1 ? `${shots.length}枚の写真` : "この写真"}
+              をチャットに追加
             </p>
             <p className="mt-0.5 text-[12px] text-muted-foreground">
-              {shots.length > 1
-                ? `${shots.length}枚の写真をまとめて送ります`
-                : "料理が複数ある場合は追加で撮影できます"}
+              追加すると入力欄に添付されます。メッセージを添えて送信できます
             </p>
             <div className="mt-auto flex items-center gap-3 pt-4">
               <button
                 onClick={() => setPhase("live")}
-                disabled={sending}
-                className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-full border bg-card text-[16px] font-medium transition-transform active:scale-[0.98] disabled:opacity-50"
+                className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-full border bg-card text-[16px] font-medium transition-transform active:scale-[0.98]"
               >
                 <Camera className="h-[18px] w-[18px]" strokeWidth={1.8} />
                 追加で撮る
               </button>
               <button
-                onClick={() => void send()}
-                disabled={sending || shots.length === 0}
+                onClick={add}
+                disabled={shots.length === 0}
                 className="h-12 flex-[1.4] rounded-full bg-primary text-[16px] font-medium text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
               >
-                {sending ? "準備中…" : "送信"}
+                追加
               </button>
             </div>
           </div>
@@ -370,59 +364,4 @@ function ShotsPreview({
       ))}
     </div>
   );
-}
-
-/**
- * 複数枚の写真を1枚のグリッド画像に合成する。
- * ai-chat が受け取れる画像は1枚のため、UI側でまとめてから送る。
- */
-async function composeShots(shots: Shot[]): Promise<Shot> {
-  const images = await Promise.all(
-    shots.map(
-      (s) =>
-        new Promise<HTMLImageElement>((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = s.url;
-        })
-    )
-  );
-
-  const CELL = 800;
-  const cols = 2;
-  const rows = Math.ceil(images.length / cols);
-  const canvas = document.createElement("canvas");
-  // 最後の行が1枚だけなら横幅いっぱいに使う
-  canvas.width = CELL * Math.min(cols, images.length);
-  canvas.height = CELL * rows;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("canvas unavailable");
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  images.forEach((img, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const isLastSolo = i === images.length - 1 && col === 0 && images.length % cols === 1;
-    const w = isLastSolo ? canvas.width : CELL;
-    const x = col * CELL;
-    const y = row * CELL;
-    // セルを埋めるように中央でトリミング(object-cover相当)
-    const scale = Math.max(w / img.width, CELL / img.height);
-    const sw = w / scale;
-    const sh = CELL / scale;
-    const sx = (img.width - sw) / 2;
-    const sy = (img.height - sh) / 2;
-    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, CELL);
-  });
-
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/jpeg", 0.85)
-  );
-  if (!blob) throw new Error("compose failed");
-  const file = new File([blob], `meal-${Date.now()}.jpg`, {
-    type: "image/jpeg",
-  });
-  return { file, url: URL.createObjectURL(blob) };
 }
