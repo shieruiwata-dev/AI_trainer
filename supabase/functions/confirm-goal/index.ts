@@ -37,9 +37,11 @@ const toInt = (value: unknown): number | null => {
 
 const purposeToGoalType = (purpose: string): string => {
   const normalized = purpose.toLowerCase();
-  if (["bulk", "gain", "muscle_gain"].includes(normalized)) return "bulk";
-  if (["maintain", "maintenance", "health"].includes(normalized)) return "maintain";
-  return "diet";
+  if (["bulk", "gain", "muscle_gain", "増量", "筋肥大"].includes(normalized)) return "bulk";
+  if (["maintain", "maintenance", "health", "維持", "健康維持"].includes(normalized)) return "maintain";
+  // goals_goal_type_check accepts `cut`, not the legacy UI value `diet`.
+  // Treat diet/lose and unknown reduction-oriented values as `cut`.
+  return "cut";
 };
 
 const jsonResponse = (status: number, body: JsonObject) =>
