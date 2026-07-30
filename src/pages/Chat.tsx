@@ -41,6 +41,10 @@ import { CaloriesPanel } from "@/components/CaloriesPanel";
 import { WorkoutSetsCard } from "@/components/WorkoutSetsCard";
 import { WorkoutRecordPage } from "@/components/WorkoutRecordPage";
 import { uploadChatImage } from "@/lib/uploadImage";
+import {
+  fetchServerMessages,
+  mergeServerHistory,
+} from "@/lib/serverConversations";
 
 import { calcMacroTargets } from "@/lib/nutrition";
 import {
@@ -154,6 +158,20 @@ export default function Chat() {
   useEffect(() => {
     saveConversations(convs);
   }, [convs]);
+
+  // サーバーに保存されたチャット履歴(ai_messages)を読み込み、
+  // この端末に無い分をサイドバーに合成する(別デバイスで履歴が見えない問題の対策)
+  useEffect(() => {
+    if (!isEdgeChatAvailable) return;
+    let cancelled = false;
+    fetchServerMessages().then((msgs) => {
+      if (cancelled || msgs.length === 0) return;
+      setConvs((prev) => mergeServerHistory(prev, msgs));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!attachedFile) {
