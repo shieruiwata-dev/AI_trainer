@@ -3,8 +3,6 @@ import { Link } from "react-router-dom";
 import {
   ArrowUp,
   Camera,
-  ChevronDown,
-  ClipboardList,
   Copy,
   Dumbbell,
   Menu,
@@ -90,7 +88,6 @@ export default function Chat() {
 
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [logMenuOpen, setLogMenuOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   // 設定オーバーレイ: 歯車の位置から円形に広がる(閉じると逆再生)
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -389,50 +386,23 @@ export default function Chat() {
           </p>
         </div>
 
-        <nav className="mt-4 space-y-0.5 px-3">
-          {/* 記録(タップで食事・筋トレ・体重のタブを展開) */}
-          <button
-            onClick={() => setLogMenuOpen((v) => !v)}
-            className="flex w-full items-center gap-3.5 rounded-[14px] px-3 py-3 text-[17px] transition-colors hover:bg-muted/60"
-          >
-            <ClipboardList className="h-[22px] w-[22px]" strokeWidth={1.8} />
-            <span className="flex-1 text-left">記録</span>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform duration-300 ease-ios",
-                logMenuOpen && "rotate-180"
-              )}
-              strokeWidth={2}
-            />
-          </button>
-          <div
-            className={cn(
-              "grid transition-[grid-template-rows] duration-300 ease-ios",
-              logMenuOpen
-                ? "[grid-template-rows:1fr]"
-                : "[grid-template-rows:0fr]"
-            )}
-          >
-            <div className="overflow-hidden">
-              <div className="my-0.5 ml-5 space-y-0.5 border-l pl-2.5">
-                <SidebarSubLink
-                  to="/log?tab=meal"
-                  icon={<Utensils className="h-[18px] w-[18px]" strokeWidth={1.8} />}
-                  label="食事"
-                />
-                <SidebarSubLink
-                  to="/log?tab=workout"
-                  icon={<Dumbbell className="h-[18px] w-[18px]" strokeWidth={1.8} />}
-                  label="筋トレ"
-                />
-                <SidebarSubLink
-                  to="/log?tab=weight"
-                  icon={<Scale className="h-[18px] w-[18px]" strokeWidth={1.8} />}
-                  label="体重"
-                />
-              </div>
-            </div>
-          </div>
+        {/* 記録への大きなナビボタン(食事・筋トレ・体重) */}
+        <nav className="mt-5 space-y-3 px-4">
+          <SidebarBigLink
+            to="/log?tab=meal"
+            icon={<Utensils className="h-7 w-7" strokeWidth={1.8} />}
+            label="食事"
+          />
+          <SidebarBigLink
+            to="/log?tab=workout"
+            icon={<Dumbbell className="h-7 w-7" strokeWidth={1.8} />}
+            label="筋トレ"
+          />
+          <SidebarBigLink
+            to="/log?tab=weight"
+            icon={<Scale className="h-7 w-7" strokeWidth={1.8} />}
+            label="体重"
+          />
         </nav>
 
         <div className="flex-1" />
@@ -975,7 +945,8 @@ function IconButton({
   );
 }
 
-function SidebarSubLink({
+/** サイドバーの大きな記録ナビボタン(カード型・タップで各記録ページへ) */
+function SidebarBigLink({
   to,
   icon,
   label,
@@ -987,9 +958,9 @@ function SidebarSubLink({
   return (
     <Link
       to={to}
-      className="flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-[16px] text-foreground transition-colors hover:bg-muted/60"
+      className="flex w-full items-center gap-4 rounded-[18px] border bg-card px-5 py-5 text-[19px] font-medium text-foreground transition-transform ease-ios active:scale-[0.97]"
     >
-      <span className="text-muted-foreground">{icon}</span>
+      <span className="text-primary">{icon}</span>
       {label}
     </Link>
   );
