@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowDown,
   ArrowUp,
   Camera,
   Copy,
@@ -84,6 +85,10 @@ const DUPLICATE_OF_CARD_BUTTONS = [
 const INITIAL_VISIBLE = 40;
 const LOAD_CHUNK = 40;
 
+/** 「最新へ」ボタンを出す下端からの距離(px)と、飛ぶときの所要時間 */
+const JUMP_BUTTON_THRESHOLD = 300;
+const JUMP_DURATION_MS = 380;
+
 export default function Chat() {
   const data = useAppData();
   const { trainer } = useSelectedTrainer();
@@ -128,6 +133,15 @@ export default function Chat() {
   /** 過去分を上に足す直前の「下端からの距離」。復元してスクロール位置を維持する */
   const prependAnchor = useRef<number | null>(null);
   const didFirstScroll = useRef(false);
+  // 上へ遡っているときだけ出す「最新へ」ボタン
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const jumpRaf = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (jumpRaf.current !== null) cancelAnimationFrame(jumpRaf.current);
+    },
+    []
+  );
 
   // 上部カード → 全画面記録ページ(カードの位置から広がるアニメーション)
   const [recordPage, setRecordPage] = useState<{
@@ -218,6 +232,14 @@ export default function Chat() {
   const visibleMessages = messages.slice(-visibleCount);
   const hasOlder = messages.length > visibleMessages.length;
 
+  function handleScroll() {
+    maybeLoadOlder();
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowJumpToLatest(fromBottom > JUMP_BUTTON_THRESHOLD);
+  }
+
   /** 上端に近づいたら過去のメッセージを追加表示(LINEで上へ遡るのと同じ) */
   function maybeLoadOlder() {
     const el = scrollAreaRef.current;
@@ -225,6 +247,36 @@ export default function Chat() {
     if (el.scrollTop > 80) return;
     prependAnchor.current = el.scrollHeight - el.scrollTop;
     setVisibleCount((c) => c + LOAD_CHUNK);
+  }
+
+  /**
+   * 最新のメッセージまで一気にスクロールする。
+   * 履歴が長いと標準の smooth スクロールは距離に比例して遅くなるため、
+   * 距離によらず一定時間(JUMP_DURATION_MS)で着くよう自前で動かす。
+   */
+  function jumpToLatest() {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    if (jumpRaf.current !== null) cancelAnimationFrame(jumpRaf.current);
+    setShowJumpToLatest(false);
+
+    const start = el.scrollTop;
+    const distance = el.scrollHeight - el.clientHeight - start;
+    if (distance <= 0) return;
+    const startedAt = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - startedAt) / JUMP_DURATION_MS);
+      // 終わりに向かって減速(ease-out)。ease-ios に近い挙動
+      el.scrollTop = start + distance * (1 - Math.pow(1 - t, 3));
+      if (t < 1) {
+        jumpRaf.current = requestAnimationFrame(step);
+      } else {
+        jumpRaf.current = null;
+        // 画像の読み込みなどで高さが伸びていても確実に最下部へ
+        el.scrollTop = el.scrollHeight;
+      }
+    };
+    jumpRaf.current = requestAnimationFrame(step);
   }
 
   async function sendMessage(text: string) {
@@ -646,11 +698,12 @@ export default function Chat() {
         />
 
         {/* メッセージ領域(全履歴が1本のスレッドとして積み重なる) */}
-        <div
-          ref={scrollAreaRef}
-          onScroll={maybeLoadOlder}
-          className="flex-1 space-y-5 overflow-y-auto px-5 py-3"
-        >
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={scrollAreaRef}
+            onScroll={handleScroll}
+            className="h-full space-y-5 overflow-y-auto px-5 py-3"
+          >
           {messages.length === 0 && streamingText === null && (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
               <h2 className="text-[24px] leading-[1.3] [text-wrap:balance]">
@@ -770,7 +823,25 @@ export default function Chat() {
               )}
             </AssistantRow>
           )}
-          <div ref={bottomRef} />
+            <div ref={bottomRef} />
+          </div>
+
+          {/* 上へ遡ったときだけ出る「最新へ」ボタン */}
+          <button
+            type="button"
+            aria-label="最新のメッセージへ"
+            aria-hidden={!showJumpToLatest}
+            tabIndex={showJumpToLatest ? 0 : -1}
+            onClick={jumpToLatest}
+            className={cn(
+              "absolute bottom-4 left-1/2 z-20 flex h-10 w-10 -translate-x-1/2 items-center justify-center rounded-full border bg-card/90 text-primary backdrop-blur-xl transition-[opacity,transform] duration-200 ease-ios active:scale-90",
+              showJumpToLatest
+                ? "opacity-100"
+                : "pointer-events-none translate-y-1 opacity-0"
+            )}
+          >
+            <ArrowDown className="h-5 w-5" strokeWidth={2} />
+          </button>
         </div>
 
         {/* 質問候補(+ボタンで開閉) */}
