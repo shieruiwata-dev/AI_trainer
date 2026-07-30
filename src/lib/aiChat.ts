@@ -133,6 +133,22 @@ export async function confirmAction(params: {
   return (data ?? {}) as ConfirmActionResult;
 }
 
+/** 目標提案カードの「この目標で始める」→ confirm-goal */
+export async function confirmGoal(
+  proposal: Record<string, unknown>
+): Promise<ConfirmActionResult> {
+  const { data, error } = await supabase.functions.invoke("confirm-goal", {
+    body: { proposal },
+  });
+
+  if (error) {
+    console.error("confirm-goal invoke error", error);
+    throw new Error("目標の保存に失敗しました。もう一度お試しください。");
+  }
+  return (data ?? {}) as ConfirmActionResult;
+}
+
+
 /** ui_type ごとのカード見出し */
 export const UI_TYPE_TITLE: Partial<Record<UiType, string>> = {
   onboarding_question: "初期設定",
