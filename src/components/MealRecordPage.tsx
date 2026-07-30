@@ -296,7 +296,7 @@ function WeightChart({ data }: { data: AppData }) {
         </p>
       ) : (
         <>
-          <div className="mt-1 h-44">
+          <div className="mt-1 h-36">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={chart.data}
