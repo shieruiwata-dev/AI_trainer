@@ -24,6 +24,7 @@ AIトレーナーとチャットしながらダイエット・筋トレを記録
    node scripts/build-single-html.mjs <出力先>.html
    # Artifact URL(既存を更新): https://claude.ai/code/artifact/dbb00a75-0aab-4c15-8b13-18bae0a6dd53
    # 新しい会話からは Artifact ツールに url を渡さないと別URLになるので注意
+   # 「別セッションの版を見ていない」エラーが出たら、先に WebFetch で上記URLを読んでから再実行
    ```
 3. 実データでの動作確認は `scripts/e2e/` 参照(テストアカウントでSupabase直結)
 4. スクリーンショットをユーザーに送付 → コミット → `git push origin claude/ai-trainer-diet-app-yq6ool`
