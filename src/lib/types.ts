@@ -74,7 +74,12 @@ export interface ChatMessage {
   /** ai-chat の data(pending_action_id / action など) */
   actionData?: Record<string, unknown> | null;
   suggestions?: string[];
+  /** onboarding_question などの選択肢ボタン */
+  quickReplies?: string[];
+  /** ui_type: goal_confirmation の目標提案 */
+  proposal?: Record<string, unknown> | null;
   safety?: { level?: string; note?: string };
+
   /** 確認カードの結果: 確定済み / 却下済み */
   decision?: "confirm" | "reject";
   /** 食材の量を修正して再計算したため、このカードは無効 */

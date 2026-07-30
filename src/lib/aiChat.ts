@@ -35,7 +35,14 @@ export interface AiChatResponse {
   conversation_id?: string;
   suggestions?: string[];
   safety?: { level?: string; note?: string };
+  /** 目標設計フロー(ui_type: goal_confirmation)の提案内容 */
+  proposal?: Record<string, unknown> | null;
+  /** onboarding_question などの選択肢 */
+  quick_replies?: string[];
+  /** 目標設計オンボーディングでDifyが収集済みと返した項目 */
+  collected_fields?: Record<string, unknown>;
 }
+
 
 export const isEdgeChatAvailable = isSupabaseConfigured;
 
@@ -44,17 +51,31 @@ export async function sendAiChat(params: {
   message: string;
   imagePath?: string | null;
   conversationId?: string | null;
+  /** 目標設計オンボーディングで収集済みの項目 */
+  onboardingState?: Record<string, unknown> | null;
 }): Promise<AiChatResponse> {
   try {
+    const goalContext = params.onboardingState
+      ? { onboarding_state: params.onboardingState }
+      : null;
+    console.log("[ai-chat] goal_context before invoke", goalContext);
     console.log("ai-chat invoke start", {
       functionName: "ai-chat",
       hasMessage: Boolean(params.message.trim()),
       hasImage: Boolean(params.imagePath),
+      hasOnboardingState: Boolean(goalContext?.onboarding_state),
     });
     const { data, error } = await supabase.functions.invoke("ai-chat", {
       body: {
         message: params.message.trim(),
         image_path: params.imagePath ?? null,
+        conversation_id: params.conversationId ?? null,
+        ...(goalContext
+          ? {
+              goal_context: goalContext,
+              profile_context: goalContext,
+            }
+          : {}),
       },
     });
 
@@ -68,7 +89,28 @@ export async function sendAiChat(params: {
       throw new Error("AIトレーナーから応答がありませんでした");
     }
 
-    const res = data as Partial<AiChatResponse>;
+    const res = data as Partial<AiChatResponse> & { data?: Record<string, unknown> };
+    const nested = (res.data ?? {}) as Record<string, unknown>;
+    const proposal =
+      (res.proposal && typeof res.proposal === "object"
+        ? (res.proposal as Record<string, unknown>)
+        : null) ??
+      (nested.proposal && typeof nested.proposal === "object"
+        ? (nested.proposal as Record<string, unknown>)
+        : null);
+    const quickReplies = Array.isArray(res.quick_replies)
+      ? res.quick_replies.filter((q): q is string => typeof q === "string")
+      : Array.isArray(nested.quick_replies)
+        ? (nested.quick_replies as unknown[]).filter(
+            (q): q is string => typeof q === "string"
+          )
+        : [];
+    const collectedFields =
+      res.collected_fields && typeof res.collected_fields === "object"
+        ? (res.collected_fields as Record<string, unknown>)
+        : nested.collected_fields && typeof nested.collected_fields === "object"
+          ? (nested.collected_fields as Record<string, unknown>)
+          : null;
     return {
       message: res.message ?? "",
       ui_type: (res.ui_type as UiType) ?? "text",
@@ -77,7 +119,11 @@ export async function sendAiChat(params: {
       conversation_id: res.conversation_id,
       suggestions: res.suggestions ?? [],
       safety: res.safety,
+      proposal,
+      quick_replies: quickReplies,
+      collected_fields: collectedFields ?? undefined,
     };
+
   } catch (error) {
     console.error("ai-chat invoke catch", error);
     throw error;
@@ -109,6 +155,22 @@ export async function confirmAction(params: {
   }
   return (data ?? {}) as ConfirmActionResult;
 }
+
+/** 目標提案カードの「この目標で始める」→ confirm-goal */
+export async function confirmGoal(
+  proposal: Record<string, unknown>
+): Promise<ConfirmActionResult> {
+  const { data, error } = await supabase.functions.invoke("confirm-goal", {
+    body: { proposal },
+  });
+
+  if (error) {
+    console.error("confirm-goal invoke error", error);
+    throw new Error("目標の保存に失敗しました。もう一度お試しください。");
+  }
+  return (data ?? {}) as ConfirmActionResult;
+}
+
 
 /** ui_type ごとのカード見出し */
 export const UI_TYPE_TITLE: Partial<Record<UiType, string>> = {

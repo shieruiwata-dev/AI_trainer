@@ -19,14 +19,24 @@ import { useAppData } from "@/hooks/useAppData";
 import { getTrainerMode, sendToTrainer } from "@/lib/trainer";
 import {
   confirmAction,
+  confirmGoal,
+  getPayload,
   isEdgeChatAvailable,
   sanitizeAssistantText,
   sendAiChat,
   type UiType,
 } from "@/lib/aiChat";
+import {
+  extractOnboardingFields,
+  loadOnboardingState,
+  mergeOnboardingState,
+  saveOnboardingState,
+  toOnboardingContext,
+} from "@/lib/onboardingState";
 import SettingsPage from "@/pages/Settings";
 import { CameraSheet } from "@/components/CameraSheet";
 import { ChatActionCard } from "@/components/ChatActionCard";
+import { GoalProposalCard } from "@/components/GoalProposalCard";
 import { MealRecordPage } from "@/components/MealRecordPage";
 import { CaloriesPanel } from "@/components/CaloriesPanel";
 import { WorkoutSetsCard } from "@/components/WorkoutSetsCard";
@@ -153,7 +163,11 @@ export default function Chat() {
 
   const messages = thread.messages;
 
+  // 目標設計オンボーディングで収集した項目(端末に保持し、毎回Difyへ渡す)
+  const onboardingStateRef = useRef(loadOnboardingState());
+
   useEffect(() => {
+
     saveThread(thread);
   }, [thread]);
 
@@ -260,12 +274,45 @@ export default function Chat() {
           : null;
 
       if (isEdgeChatAvailable) {
+        // ユーザーの回答から拾える項目をオンボーディング状態にマージ
+        const currentStoredState = mergeOnboardingState(
+          loadOnboardingState(),
+          onboardingStateRef.current as Record<string, unknown>
+        );
+        const nextState = mergeOnboardingState(
+          currentStoredState,
+          extractOnboardingFields(trimmed)
+        );
+        onboardingStateRef.current = nextState;
+        saveOnboardingState(nextState);
+        const onboardingContext = toOnboardingContext(nextState);
+
         // Supabase Edge Function `ai-chat` 経由
         const res = await sendAiChat({
           message: trimmed,
           imagePath,
           conversationId: thread.difyConversationId ?? null,
+          onboardingState: onboardingContext,
         });
+
+        // Dify 側が収集した項目があればマージ
+        const collected =
+          res.collected_fields ??
+          ((res.data as Record<string, unknown> | null)?.collected_fields as
+            | Record<string, unknown>
+            | undefined) ??
+          ((getPayload(res.data as Record<string, unknown> | null).collected_fields) as
+            | Record<string, unknown>
+            | undefined) ??
+          ((getPayload(res.data as Record<string, unknown> | null).extracted) as
+            | Record<string, unknown>
+            | undefined);
+        if (collected) {
+          const merged = mergeOnboardingState(onboardingStateRef.current, collected);
+          onboardingStateRef.current = merged;
+          saveOnboardingState(merged);
+        }
+
         const assistantMsg: ChatMessage = {
           id: uid(),
           role: "assistant",
@@ -274,6 +321,8 @@ export default function Chat() {
           uiType: res.ui_type,
           actionData: (res.data as Record<string, unknown> | null) ?? null,
           suggestions: res.suggestions,
+          quickReplies: res.quick_replies ?? [],
+          proposal: res.proposal ?? null,
           safety: res.safety,
         };
         setThread((prev) => ({
@@ -380,6 +429,57 @@ export default function Chat() {
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "保存に失敗しました");
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
+
+  /** 目標提案カードの「この目標で始める」→ confirm-goal */
+  async function startGoal(messageId: string) {
+    if (confirmingId) return;
+    const msg = messages.find((m) => m.id === messageId);
+    const proposal = msg?.proposal;
+    if (!proposal) {
+      toast.error("この提案はすでに無効です");
+      return;
+    }
+
+    setConfirmingId(messageId);
+    try {
+      await confirmGoal(proposal);
+      setThread((prev) => ({
+        ...prev,
+        messages: [
+          ...prev.messages.map((m) =>
+            m.id === messageId ? { ...m, decision: "confirm" as const } : m
+          ),
+          {
+            id: uid(),
+            role: "assistant" as const,
+            content: "目標を保存しました。今日からこの方針で進めましょう。",
+            createdAt: new Date().toISOString(),
+            uiType: "text",
+          },
+        ],
+      }));
+      await data.reload();
+    } catch (e) {
+      console.error("confirm-goal failed", e);
+      setThread((prev) => ({
+        ...prev,
+        messages: [
+          ...prev.messages,
+          {
+            id: uid(),
+            role: "assistant" as const,
+            content: "目標の保存に失敗しました。もう一度お試しください。",
+            createdAt: new Date().toISOString(),
+            uiType: "text",
+          },
+        ],
+      }));
+      toast.error("目標の保存に失敗しました。もう一度お試しください。");
     } finally {
       setConfirmingId(null);
     }
@@ -565,6 +665,12 @@ export default function Chat() {
             const newDay = !prev || !isSameDay(prev.createdAt, m.createdAt);
             // アイコンは連続する返信の先頭だけに出す(LINEと同じ)
             const showAvatar = newDay || prev?.role !== "assistant";
+            // 選択肢(onboarding_question)と候補チップをまとめて重複を除く
+            const chips = [
+              ...(m.quickReplies ?? []),
+              ...(m.suggestions ?? []),
+            ].filter((v, idx, a) => a.indexOf(v) === idx);
+            const isGoalCard = m.uiType === "goal_confirmation" && !!m.proposal;
             return (
               <Fragment key={m.id}>
                 {/* 日付が変わる箇所にLINE風のセパレーターを挟む */}
@@ -576,28 +682,40 @@ export default function Chat() {
                     <AssistantMessage
                       content={sanitizeAssistantText(m.content)}
                     />
-                    {m.uiType && m.uiType !== "text" && (
-                      <ChatActionCard
-                        uiType={m.uiType as UiType}
-                        actionData={m.actionData}
-                        safety={m.safety}
+                    {isGoalCard && (
+                      <GoalProposalCard
+                        proposal={m.proposal!}
                         decision={m.decision}
-                        superseded={m.superseded}
                         busy={confirmingId !== null}
-                        onConfirm={() => handleDecision(m.id, "confirm")}
-                        onReject={() => handleDecision(m.id, "reject")}
-                        onRecalculate={(message) =>
-                          recalculateMeal(m.id, message)
-                        }
+                        onStart={() => void startGoal(m.id)}
+                        onAdjust={(message) => void sendMessage(message)}
                       />
                     )}
+                    {/* onboarding_question は選択肢チップだけで答えるのでカードは出さない */}
+                    {m.uiType &&
+                      m.uiType !== "text" &&
+                      m.uiType !== "onboarding_question" &&
+                      !isGoalCard && (
+                        <ChatActionCard
+                          uiType={m.uiType as UiType}
+                          actionData={m.actionData}
+                          safety={m.safety}
+                          decision={m.decision}
+                          superseded={m.superseded}
+                          busy={confirmingId !== null}
+                          onConfirm={() => handleDecision(m.id, "confirm")}
+                          onReject={() => handleDecision(m.id, "reject")}
+                          onRecalculate={(message) =>
+                            recalculateMeal(m.id, message)
+                          }
+                        />
+                      )}
                     {/* 候補チップは最新メッセージにだけ出す(過去の履歴に残さない) */}
-                    {m.suggestions &&
-                      m.suggestions.length > 0 &&
+                    {chips.length > 0 &&
                       !m.decision &&
                       m.id === messages[messages.length - 1]?.id && (
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {m.suggestions
+                          {chips
                             .filter(
                               // 確認カードのボタンと重複する候補は出さない
                               (s) =>

@@ -3,7 +3,8 @@
 新しいセッションで違和感なく作業を続けるための詳細ドキュメント。
 まず `CLAUDE.md`(役割分担・同期ルール・作業サイクル)を読み、次にこのファイルを読むこと。
 バックエンド仕様(Dify応答形式・Supabaseスキーマ・Edge Functions)は `docs/ai-spec.md`。
-最終更新: 2026-07-30(LINE型スレッド化・サイドバー大ボタン化・マイク削除。両リポジトリ完全同期済み)
+最終更新: 2026-07-30(LINE型スレッド化・トレーナーアイコン・思考中表示 +
+柴崎さんの目標設計オンボーディングをマージ。両リポジトリ完全同期済み)
 
 ---
 
@@ -67,6 +68,14 @@
   1枚のグリッド画像に合成(ai-chatが画像1枚しか受けないため)
 - **AI連携**: `isEdgeChatAvailable` → `sendAiChat`(ai-chat Edge Function)/ でなければ `sendToTrainer`(デモ)。
   確認カード→ `handleDecision` → confirm-action
+- **目標設計オンボーディング(柴崎さん実装・2026-07-30マージ)**: `lib/onboardingState.ts` が回答項目を
+  localStorage `fitcoach.onboardingState.v1` に保持し、送信ごとに `goal_context.onboarding_state` として
+  Difyへ渡す。応答の `collected_fields` を書き戻して蓄積する。
+  - `ui_type: "onboarding_question"` → **カードは出さず** `quick_replies` を候補チップとして表示
+    (`quickReplies` + `suggestions` を結合して重複除去。チップは最新メッセージのみ)
+  - `ui_type: "goal_confirmation"` + `proposal` → `GoalProposalCard`。「この目標で始める」→ `startGoal`
+    → confirm-goal Edge Function → 完了メッセージを追記して `data.reload()`
+  - これらのカード・チップも `AssistantRow` の中に入るのでアイコン分だけ字下げされる
 - **トレーナーの顔アイコン**(`lib/trainers.ts` + `components/TrainerAvatar.tsx`):
   設定の「トレーナーのアイコン」で4人から選ぶ。選択は localStorage `fitcoach.trainer_icon`
   (端末ごと。**別デバイス同期にはバックエンドに列が必要=柴崎さん案件**)。
