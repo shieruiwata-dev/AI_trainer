@@ -963,9 +963,11 @@ function TopCards({
         }}
         className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-0.5 py-1.5"
       >
+        {/* self-start が重要: flexの既定(stretch)だと、セット数が多いときに
+            筋トレカードへ引きずられて行全体が伸び、その高さを計測してしまう */}
         <div
           ref={firstCardRef}
-          className="w-full shrink-0 cursor-pointer snap-center"
+          className="w-full shrink-0 cursor-pointer snap-center self-start"
           role="button"
           aria-label="食事記録ページを開く"
           onClick={(e) => onOpen("meal", e.currentTarget)}
@@ -979,7 +981,7 @@ function TopCards({
           />
         </div>
         <div
-          className="w-full shrink-0 cursor-pointer snap-center"
+          className="w-full shrink-0 cursor-pointer snap-center self-start"
           role="button"
           aria-label="筋トレ記録ページを開く"
           style={cardHeight ? { height: cardHeight } : undefined}
