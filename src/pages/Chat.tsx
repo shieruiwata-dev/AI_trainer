@@ -269,7 +269,9 @@ export default function Chat() {
           imagePath,
           conversationId: thread.difyConversationId ?? null,
           onboardingState:
-            Object.keys(nextState).length > 0 ? nextState : null,
+            Object.keys(nextState).length > 0
+              ? (nextState as Record<string, unknown>)
+              : null,
         });
 
         // Dify 側が収集した項目があればマージ
