@@ -630,16 +630,13 @@ export default function Chat() {
           />
         )}
 
-        {/* カメラ撮影シート(食事の写真 → グラム数任意入力 → 送信) */}
+        {/* カメラ撮影シート(食事の写真を撮影 → 追加撮影 → 送信) */}
         <CameraSheet
           open={cameraOpen}
           onClose={() => setCameraOpen(false)}
-          onSend={(file, previewUrl, grams) => {
+          onSend={(file, previewUrl) => {
             setCameraOpen(false);
-            const text = grams
-              ? `写真の食事を記録して。量は約${grams}gです`
-              : "写真の食事を記録して";
-            void sendMessage(text, { file, previewUrl });
+            void sendMessage("写真の食事を記録して", { file, previewUrl });
           }}
         />
 

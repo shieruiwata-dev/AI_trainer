@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, ChevronLeft, Images, SwitchCamera } from "lucide-react";
+import { Camera, ChevronLeft, Images, SwitchCamera, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-interface Captured {
+interface Shot {
   file: File;
   url: string;
 }
@@ -11,7 +11,9 @@ interface Captured {
 /**
  * 食事撮影シート。
  * - 下からスライドして表示され、カメラのライブプレビューを出す
- * - 撮影すると写真が上部へスライドし、下にグラム数の手動入力(任意)と送信ボタンが出る
+ * - 撮影すると写真が上部へスライドし、「追加で撮る」で複数枚撮影できる
+ * - 送信時、複数枚の場合は1枚の画像に合成して送る
+ *   (バックエンドの ai-chat が受け取れる画像は1枚のため)
  * - カメラが使えない環境(権限なし・非対応)ではファイル選択(iOSでは標準カメラ起動)に
  *   フォールバックする
  */
@@ -22,14 +24,15 @@ export function CameraSheet({
 }: {
   open: boolean;
   onClose: () => void;
-  onSend: (file: File, previewUrl: string, grams: string) => void;
+  onSend: (file: File, previewUrl: string) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
+  const [phase, setPhase] = useState<"live" | "review">("live");
   const [facing, setFacing] = useState<"environment" | "user">("environment");
   const [cameraError, setCameraError] = useState(false);
-  const [captured, setCaptured] = useState<Captured | null>(null);
-  const [grams, setGrams] = useState("");
+  const [shots, setShots] = useState<Shot[]>([]);
+  const [sending, setSending] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
@@ -50,11 +53,12 @@ export function CameraSheet({
   // 完全に閉じたら状態をリセット
   useEffect(() => {
     if (mounted) return;
-    setCaptured((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url);
-      return null;
+    setShots((prev) => {
+      prev.forEach((s) => URL.revokeObjectURL(s.url));
+      return [];
     });
-    setGrams("");
+    setPhase("live");
+    setSending(false);
     setCameraError(false);
     setFacing("environment");
   }, [mounted]);
@@ -64,9 +68,9 @@ export function CameraSheet({
     streamRef.current = null;
   }, []);
 
-  // ライブプレビュー開始(撮影後・クローズ時は停止)
+  // ライブプレビュー開始(撮影確認中・クローズ時は停止)
   useEffect(() => {
-    if (!mounted || captured) return;
+    if (!mounted || phase !== "live") return;
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError(true);
       return;
@@ -96,7 +100,7 @@ export function CameraSheet({
       cancelled = true;
       stopStream();
     };
-  }, [mounted, captured, facing, stopStream]);
+  }, [mounted, phase, facing, stopStream]);
 
   function capture() {
     const v = videoRef.current;
@@ -120,7 +124,8 @@ export function CameraSheet({
         const file = new File([blob], `meal-${Date.now()}.jpg`, {
           type: "image/jpeg",
         });
-        setCaptured({ file, url: URL.createObjectURL(blob) });
+        setShots((prev) => [...prev, { file, url: URL.createObjectURL(blob) }]);
+        setPhase("review");
       },
       "image/jpeg",
       0.85
@@ -139,14 +144,30 @@ export function CameraSheet({
       toast.error("画像は8MB以下にしてください");
       return;
     }
-    setCaptured({ file: f, url: URL.createObjectURL(f) });
+    setShots((prev) => [...prev, { file: f, url: URL.createObjectURL(f) }]);
+    setPhase("review");
   }
 
-  function retake() {
-    setCaptured((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url);
-      return null;
+  function removeShot(index: number) {
+    setShots((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      URL.revokeObjectURL(prev[index].url);
+      if (next.length === 0) setPhase("live");
+      return next;
     });
+  }
+
+  async function send() {
+    if (shots.length === 0 || sending) return;
+    setSending(true);
+    try {
+      const { file, url } =
+        shots.length === 1 ? shots[0] : await composeShots(shots);
+      onSend(file, url);
+    } catch {
+      toast.error("画像の準備に失敗しました。もう一度お試しください");
+      setSending(false);
+    }
   }
 
   if (!mounted) return null;
@@ -187,17 +208,13 @@ export function CameraSheet({
         )}
         style={{ height: "min(560px, 74%)" }}
       >
-        {/* 撮影プレビュー / 撮影後は上部へ縮んで写真表示 */}
+        {/* カメラ / 撮影済み写真(上部へスライド) */}
         <div
           className="relative w-full shrink-0 overflow-hidden bg-black transition-[height] duration-[350ms] ease-ios"
-          style={{ height: captured ? "46%" : "100%" }}
+          style={{ height: phase === "review" ? "58%" : "100%" }}
         >
-          {captured ? (
-            <img
-              src={captured.url}
-              alt="撮影した食事"
-              className="h-full w-full object-cover"
-            />
+          {phase === "review" ? (
+            <ShotsPreview shots={shots} onRemove={removeShot} />
           ) : cameraError ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
               <Camera className="h-9 w-9 text-white/60" strokeWidth={1.5} />
@@ -227,8 +244,13 @@ export function CameraSheet({
           )}
 
           {/* ライブ時のコントロール */}
-          {!captured && (
+          {phase === "live" && (
             <>
+              {shots.length > 0 && (
+                <span className="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-[13px] font-medium text-white backdrop-blur [font-variant-numeric:tabular-nums]">
+                  {shots.length}枚撮影済み
+                </span>
+              )}
               {!cameraError && (
                 <button
                   aria-label="カメラを切り替える"
@@ -244,8 +266,10 @@ export function CameraSheet({
               )}
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-6 pb-5">
                 <button
-                  aria-label="閉じる"
-                  onClick={onClose}
+                  aria-label={shots.length > 0 ? "撮影済みに戻る" : "閉じる"}
+                  onClick={() =>
+                    shots.length > 0 ? setPhase("review") : onClose()
+                  }
                   className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-foreground transition-transform active:scale-95"
                 >
                   <ChevronLeft className="h-6 w-6" strokeWidth={2} />
@@ -268,41 +292,32 @@ export function CameraSheet({
           )}
         </div>
 
-        {/* 撮影後: グラム数の手動入力(任意)+ 送信 */}
-        {captured && (
+        {/* 撮影後: 追加で撮る / 送信 */}
+        {phase === "review" && (
           <div className="flex min-h-0 flex-1 animate-fade-in flex-col px-5 pb-5 pt-4">
-            <p className="text-[15px] font-semibold">グラム数(任意)</p>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">
-              未入力の場合はAIトレーナーが写真から推定します
+            <p className="text-[15px] font-semibold">
+              この写真を送信しますか?
             </p>
-            <label className="mt-3 flex items-center gap-2 rounded-[14px] border bg-secondary px-4 py-3">
-              <input
-                value={grams}
-                onChange={(e) =>
-                  setGrams(e.target.value.replace(/[^0-9.]/g, ""))
-                }
-                inputMode="decimal"
-                placeholder="例: 350"
-                className="w-full bg-transparent text-[17px] [font-variant-numeric:tabular-nums] placeholder:text-muted-foreground focus:outline-none"
-              />
-              <span className="shrink-0 text-[15px] text-muted-foreground">
-                g
-              </span>
-            </label>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              {shots.length > 1
+                ? `${shots.length}枚の写真をまとめて送ります`
+                : "料理が複数ある場合は追加で撮影できます"}
+            </p>
             <div className="mt-auto flex items-center gap-3 pt-4">
               <button
-                onClick={retake}
-                className="h-12 flex-1 rounded-full border bg-card text-[16px] font-medium transition-transform active:scale-[0.98]"
+                onClick={() => setPhase("live")}
+                disabled={sending}
+                className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-full border bg-card text-[16px] font-medium transition-transform active:scale-[0.98] disabled:opacity-50"
               >
-                撮り直す
+                <Camera className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                追加で撮る
               </button>
               <button
-                onClick={() =>
-                  captured && onSend(captured.file, captured.url, grams.trim())
-                }
-                className="h-12 flex-[1.4] rounded-full bg-primary text-[16px] font-medium text-primary-foreground transition-transform active:scale-[0.98]"
+                onClick={() => void send()}
+                disabled={sending || shots.length === 0}
+                className="h-12 flex-[1.4] rounded-full bg-primary text-[16px] font-medium text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-60"
               >
-                送信
+                {sending ? "準備中…" : "送信"}
               </button>
             </div>
           </div>
@@ -310,4 +325,104 @@ export function CameraSheet({
       </div>
     </div>
   );
+}
+
+/** 撮影済み写真の一覧。1枚なら全面、複数なら横スクロールのカード */
+function ShotsPreview({
+  shots,
+  onRemove,
+}: {
+  shots: Shot[];
+  onRemove: (index: number) => void;
+}) {
+  if (shots.length === 1) {
+    return (
+      <img
+        src={shots[0].url}
+        alt="撮影した食事"
+        className="h-full w-full object-cover"
+      />
+    );
+  }
+  return (
+    <div className="no-scrollbar flex h-full snap-x snap-mandatory gap-2 overflow-x-auto p-2">
+      {shots.map((s, i) => (
+        <div
+          key={s.url}
+          className="relative h-full w-[82%] shrink-0 snap-center overflow-hidden rounded-[16px]"
+        >
+          <img
+            src={s.url}
+            alt={`撮影した食事 ${i + 1}枚目`}
+            className="h-full w-full object-cover"
+          />
+          <button
+            aria-label={`${i + 1}枚目を削除`}
+            onClick={() => onRemove(i)}
+            className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur transition-transform active:scale-95"
+          >
+            <X className="h-4 w-4" strokeWidth={2.2} />
+          </button>
+          <span className="absolute bottom-2 left-2 rounded-full bg-black/45 px-2.5 py-0.5 text-[12px] text-white [font-variant-numeric:tabular-nums]">
+            {i + 1}/{shots.length}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 複数枚の写真を1枚のグリッド画像に合成する。
+ * ai-chat が受け取れる画像は1枚のため、UI側でまとめてから送る。
+ */
+async function composeShots(shots: Shot[]): Promise<Shot> {
+  const images = await Promise.all(
+    shots.map(
+      (s) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = s.url;
+        })
+    )
+  );
+
+  const CELL = 800;
+  const cols = 2;
+  const rows = Math.ceil(images.length / cols);
+  const canvas = document.createElement("canvas");
+  // 最後の行が1枚だけなら横幅いっぱいに使う
+  canvas.width = CELL * Math.min(cols, images.length);
+  canvas.height = CELL * rows;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas unavailable");
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  images.forEach((img, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const isLastSolo = i === images.length - 1 && col === 0 && images.length % cols === 1;
+    const w = isLastSolo ? canvas.width : CELL;
+    const x = col * CELL;
+    const y = row * CELL;
+    // セルを埋めるように中央でトリミング(object-cover相当)
+    const scale = Math.max(w / img.width, CELL / img.height);
+    const sw = w / scale;
+    const sh = CELL / scale;
+    const sx = (img.width - sw) / 2;
+    const sy = (img.height - sh) / 2;
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, CELL);
+  });
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", 0.85)
+  );
+  if (!blob) throw new Error("compose failed");
+  const file = new File([blob], `meal-${Date.now()}.jpg`, {
+    type: "image/jpeg",
+  });
+  return { file, url: URL.createObjectURL(blob) };
 }
