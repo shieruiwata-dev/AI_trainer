@@ -60,6 +60,7 @@ export async function sendAiChat(params: {
       body: {
         message: params.message.trim(),
         image_path: params.imagePath ?? null,
+        conversation_id: params.conversationId ?? null,
       },
     });
 
