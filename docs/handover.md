@@ -67,6 +67,13 @@
   1枚のグリッド画像に合成(ai-chatが画像1枚しか受けないため)
 - **AI連携**: `isEdgeChatAvailable` → `sendAiChat`(ai-chat Edge Function)/ でなければ `sendToTrainer`(デモ)。
   確認カード→ `handleDecision` → confirm-action
+- **思考中インジケーター**(`ThinkingIndicator`): 応答待ちの間、Action Blueの3点が波打つ
+  (tailwind `animate-thinking-dot`、1.3s ease-ios、各点0.16sずらし)。固まったと誤解されないための表示。
+  本文が1文字でも来たら通常の逐次表示に切り替わる。**3.5秒以上待たせるときだけ**説明を添える
+  (通常「考えています…」/ 写真つき「写真から食事を読み取っています…」)。
+  状態は `thinking`(`{withImage}`)と `showThinkingHint`。ai-chatはストリーミングしないので
+  本番では待ち時間ずっと点が出る。デモは `demoReply` が冒頭に待ち time を入れて本番の体感を再現
+  (テキスト1.4秒 / 写真5秒)
 - **食事カードの食材編集**(`ChatActionCard.tsx`): AI推定の食材名・量を入力欄で表示し編集可能。
   量を変えるとボタンが「この量で再計算」に変わり、旧数値は薄く表示。押すと修正内容をチャットで送り直して
   AIに再計算させ、旧カードは `superseded` フラグで無効化(「量を修正して計算し直しました」表示)。

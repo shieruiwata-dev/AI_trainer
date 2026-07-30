@@ -66,11 +66,13 @@ export async function sendToTrainer(
   message: string,
   ctx: TrainerContext,
   onChunk: (partial: string) => void,
-  difyConversationId?: string
+  difyConversationId?: string,
+  /** 画像つきかどうか。デモの待ち時間を実際の解析時間に近づけるためだけに使う */
+  hasImage = false
 ): Promise<TrainerReply> {
   const mode = getTrainerMode();
   if (mode === "demo") {
-    return { answer: await demoReply(message, ctx, onChunk) };
+    return { answer: await demoReply(message, ctx, onChunk, hasImage) };
   }
 
   const conversationId = difyConversationId ?? "";
@@ -201,9 +203,13 @@ function demoAnswer(message: string, ctx: TrainerContext): string {
 async function demoReply(
   message: string,
   ctx: TrainerContext,
-  onChunk: (partial: string) => void
+  onChunk: (partial: string) => void,
+  hasImage = false
 ): Promise<string> {
   const full = demoAnswer(message, ctx) + DEMO_NOTICE;
+  // 実際のAI応答と同じく、最初に考える間を置く(思考中インジケーターが出る)。
+  // 写真は解析に時間がかかるので長めにして本番の体感に近づける
+  await new Promise((r) => setTimeout(r, hasImage ? 5000 : 1400));
   // タイピング風に少しずつ流す
   let shown = "";
   for (const char of full) {

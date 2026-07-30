@@ -86,6 +86,10 @@ export default function Chat() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const [streamingText, setStreamingText] = useState<string | null>(null);
+  // 応答待ちの状態。写真つきかどうかで待ち時間の説明を変える
+  const [thinking, setThinking] = useState<{ withImage: boolean } | null>(null);
+  // 待ちが長いときだけ「何をしているか」を添える(固まったと誤解されないように)
+  const [showThinkingHint, setShowThinkingHint] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   // 設定オーバーレイ: 歯車の位置から円形に広がる(閉じると逆再生)
@@ -173,7 +177,17 @@ export default function Chat() {
       behavior: didFirstScroll.current ? "smooth" : "auto",
     });
     didFirstScroll.current = true;
-  }, [messages.length, streamingText]);
+  }, [messages.length, streamingText, thinking, showThinkingHint]);
+
+  // 数秒待たせるときだけ説明を出す(短い応答では出さずチラつきを防ぐ)
+  useEffect(() => {
+    if (!thinking) {
+      setShowThinkingHint(false);
+      return;
+    }
+    const t = setTimeout(() => setShowThinkingHint(true), 3500);
+    return () => clearTimeout(t);
+  }, [thinking]);
 
   // 過去分を上へ足したときは、直前に見ていた位置(下端からの距離)を維持する
   useLayoutEffect(() => {
@@ -233,6 +247,7 @@ export default function Chat() {
     setInput("");
     setAttachments([]);
     setStreamingText("");
+    setThinking({ withImage: attachment !== null });
 
     try {
       // デモビルドではアップロード先が無いためスキップ(プレビュー表示のみ)
@@ -276,7 +291,8 @@ export default function Chat() {
           streakDays: data.streakDays,
         },
         (partial) => setStreamingText(partial),
-        thread.difyConversationId
+        thread.difyConversationId,
+        attachment !== null
       );
       const assistantMsg: ChatMessage = {
         id: uid(),
@@ -302,6 +318,7 @@ export default function Chat() {
     } finally {
       setSending(false);
       setStreamingText(null);
+      setThinking(null);
     }
   }
 
@@ -594,12 +611,24 @@ export default function Chat() {
             </Fragment>
           ))}
 
-          {streamingText !== null && (
-            <AssistantMessage
-              content={sanitizeAssistantText(streamingText) || "…"}
-              streaming
-            />
-          )}
+          {/* 応答待ち: まだ本文が来ていなければ思考中の点、来ていれば逐次表示 */}
+          {streamingText !== null &&
+            (sanitizeAssistantText(streamingText) ? (
+              <AssistantMessage
+                content={sanitizeAssistantText(streamingText)}
+                streaming
+              />
+            ) : (
+              <ThinkingIndicator
+                hint={
+                  showThinkingHint
+                    ? thinking?.withImage
+                      ? "写真から食事を読み取っています…"
+                      : "考えています…"
+                    : null
+                }
+              />
+            ))}
           <div ref={bottomRef} />
         </div>
 
@@ -955,6 +984,32 @@ function SidebarBigLink({
       <span className="text-primary">{icon}</span>
       {label}
     </Link>
+  );
+}
+
+/**
+ * 応答待ちの思考中インジケーター。
+ * 3つの点が波打つように動き続けるので、固まっていないことが一目で分かる。
+ * 待ちが長いとき(3.5秒〜)だけ hint に説明文が入る。
+ */
+function ThinkingIndicator({ hint }: { hint: string | null }) {
+  return (
+    <div className="flex animate-fade-in items-center gap-2.5">
+      <div className="flex items-center gap-[5px] py-1">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="h-[7px] w-[7px] animate-thinking-dot rounded-full bg-primary"
+            style={{ animationDelay: `${i * 0.16}s` }}
+          />
+        ))}
+      </div>
+      {hint && (
+        <span className="animate-fade-in text-[14px] text-muted-foreground">
+          {hint}
+        </span>
+      )}
+    </div>
   );
 }
 

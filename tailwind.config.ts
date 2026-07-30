@@ -73,6 +73,11 @@ export default {
           from: { opacity: "1", transform: "scale(1)" },
           to: { opacity: "0", transform: "scale(0.92)" },
         },
+        // 思考中インジケーターの3点(遅延をずらして波打たせる)
+        "thinking-dot": {
+          "0%, 60%, 100%": { opacity: "0.28", transform: "translateY(0) scale(0.85)" },
+          "30%": { opacity: "1", transform: "translateY(-4px) scale(1)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.25s ease-out",
@@ -81,6 +86,8 @@ export default {
         "drop-in": "drop-in 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
         "drop-out": "drop-out 0.2s cubic-bezier(0.32, 0.72, 0, 1) forwards",
         "grow-in": "grow-in 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
+        "thinking-dot":
+          "thinking-dot 1.3s cubic-bezier(0.32, 0.72, 0, 1) infinite",
       },
       transitionTimingFunction: {
         ios: "cubic-bezier(0.32, 0.72, 0, 1)",
