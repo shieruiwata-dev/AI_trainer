@@ -652,7 +652,7 @@ export default function Chat() {
           >
             <Settings
               className={cn(
-                "h-6 w-6 transition-transform duration-[700ms] [transition-timing-function:linear]",
+                "h-6 w-6 transition-transform duration-[700ms] ease-ios",
                 settingsOpen && "rotate-180"
               )}
               strokeWidth={1.8}
@@ -668,7 +668,7 @@ export default function Chat() {
               clipPath: settingsShown
                 ? "circle(142% at calc(100% - 2rem) calc(max(env(safe-area-inset-top, 0px) + 0.5rem, 0.75rem) + 1.25rem))"
                 : "circle(0% at calc(100% - 2rem) calc(max(env(safe-area-inset-top, 0px) + 0.5rem, 0.75rem) + 1.25rem))",
-              transition: "clip-path 700ms linear",
+              transition: "clip-path 700ms cubic-bezier(0.32, 0.72, 0, 1)",
             }}
           >
             <div
