@@ -632,12 +632,16 @@ export default function Chat() {
                     />
                   )}
                   {/* 候補チップは最新メッセージにだけ出す(過去の履歴に残さない) */}
-                  {m.suggestions &&
-                    m.suggestions.length > 0 &&
+                  {(() => {
+                    const chips = [
+                      ...(m.quickReplies ?? []),
+                      ...(m.suggestions ?? []),
+                    ].filter((v, i, a) => a.indexOf(v) === i);
+                    return chips.length > 0 &&
                     !m.decision &&
                     m.id === messages[messages.length - 1]?.id && (
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {m.suggestions
+                        {chips
                           .filter(
                             // 確認カードのボタンと重複する候補は出さない
                             (s) =>
@@ -655,7 +659,8 @@ export default function Chat() {
                             </button>
                           ))}
                       </div>
-                    )}
+                    );
+                  })()}
                 </div>
               )}
             </Fragment>
