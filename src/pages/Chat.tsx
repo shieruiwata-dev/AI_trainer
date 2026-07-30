@@ -34,6 +34,7 @@ import {
   sendAiChat,
   type UiType,
 } from "@/lib/aiChat";
+import SettingsPage from "@/pages/Settings";
 import { CameraSheet } from "@/components/CameraSheet";
 import { ChatActionCard } from "@/components/ChatActionCard";
 import { MealRecordPage } from "@/components/MealRecordPage";
@@ -122,6 +123,20 @@ export default function Chat() {
     if (!menuOpen) setDeleteArmed(false);
   }, [menuOpen]);
   const [cameraOpen, setCameraOpen] = useState(false);
+  // 設定オーバーレイ: 歯車の位置から円形に広がる(閉じると逆再生)
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsShown, setSettingsShown] = useState(false);
+  const [settingsMounted, setSettingsMounted] = useState(false);
+  useEffect(() => {
+    if (settingsOpen) {
+      setSettingsMounted(true);
+      const t = setTimeout(() => setSettingsShown(true), 20);
+      return () => clearTimeout(t);
+    }
+    setSettingsShown(false);
+    const t = setTimeout(() => setSettingsMounted(false), 440);
+    return () => clearTimeout(t);
+  }, [settingsOpen]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -620,14 +635,52 @@ export default function Chat() {
           <h1 className="flex-1 truncate text-[20px] font-medium tracking-[-0.01em]">
             トレーナー
           </h1>
-          <Link
-            to="/settings"
-            aria-label="設定"
-            className="-m-1 flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-transform active:scale-90"
+          {/* 歯車: タップで回転しながら設定が広がる。オーバーレイより上に置く */}
+          <button
+            type="button"
+            aria-label={settingsOpen ? "設定を閉じる" : "設定"}
+            onClick={() => {
+              if (settingsOpen) {
+                setSettingsOpen(false);
+                // 設定で目標等が変わった可能性があるので閉じたら再読込
+                void data.reload();
+              } else {
+                setSettingsOpen(true);
+              }
+            }}
+            className="relative z-50 -m-1 flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-transform active:scale-90"
           >
-            <Settings className="h-6 w-6" strokeWidth={1.8} />
-          </Link>
+            <Settings
+              className={cn(
+                "h-6 w-6 transition-transform duration-[440ms] ease-ios",
+                settingsOpen && "rotate-180"
+              )}
+              strokeWidth={1.8}
+            />
+          </button>
         </header>
+
+        {/* 設定オーバーレイ(歯車位置からの円形リビール) */}
+        {settingsMounted && (
+          <div
+            className="absolute inset-0 z-40 overflow-y-auto bg-background"
+            style={{
+              clipPath: settingsShown
+                ? "circle(150% at calc(100% - 2rem) calc(max(env(safe-area-inset-top, 0px) + 0.5rem, 0.75rem) + 1.25rem))"
+                : "circle(0% at calc(100% - 2rem) calc(max(env(safe-area-inset-top, 0px) + 0.5rem, 0.75rem) + 1.25rem))",
+              transition: "clip-path 440ms cubic-bezier(0.32, 0.72, 0, 1)",
+            }}
+          >
+            <div
+              style={{
+                paddingTop:
+                  "calc(max(env(safe-area-inset-top, 0px) + 0.5rem, 0.75rem) + 3rem)",
+              }}
+            >
+              <SettingsPage embedded />
+            </div>
+          </div>
+        )}
 
         {/* 上部カード(スワイプで カロリーPFC ⇄ 今日の筋トレ、タップで記録ページへ) */}
         <div className="px-3 pb-1">

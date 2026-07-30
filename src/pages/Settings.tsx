@@ -9,7 +9,12 @@ import { useAppData } from "@/hooks/useAppData";
 import { GOAL_TYPE_LABEL, type GoalType } from "@/lib/types";
 import { getTrainerMode } from "@/lib/trainer";
 
-export default function Settings() {
+export default function Settings({
+  embedded = false,
+}: {
+  /** チャットの歯車オーバーレイ内で表示(戻るリンク・上部セーフエリアなし) */
+  embedded?: boolean;
+}) {
   const data = useAppData();
   const [name, setName] = useState("");
   const [goalType, setGoalType] = useState<GoalType>("diet");
@@ -60,8 +65,14 @@ export default function Settings() {
   const mode = getTrainerMode();
 
   return (
-    <div className="origin-top animate-grow-in space-y-5 p-4 pb-[max(calc(env(safe-area-inset-bottom,0px)+1rem),1.5rem)] pt-[max(calc(env(safe-area-inset-top,0px)+0.5rem),0.75rem)]">
-      <BackLink />
+    <div
+      className={
+        embedded
+          ? "space-y-5 p-4 pb-[max(calc(env(safe-area-inset-bottom,0px)+1rem),1.5rem)] pt-1"
+          : "origin-top animate-grow-in space-y-5 p-4 pb-[max(calc(env(safe-area-inset-bottom,0px)+1rem),1.5rem)] pt-[max(calc(env(safe-area-inset-top,0px)+0.5rem),0.75rem)]"
+      }
+    >
+      {!embedded && <BackLink />}
       <header className="px-1">
         <h1 className="text-[28px] leading-[1.14]">設定</h1>
         <p className="mt-1 text-[15px] text-muted-foreground">
