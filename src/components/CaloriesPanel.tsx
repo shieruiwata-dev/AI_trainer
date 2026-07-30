@@ -11,12 +11,15 @@ export function CaloriesPanel({
   proteinG,
   fatG,
   carbsG,
+  shadow = true,
 }: {
   todayCalories: number;
   profile: Profile;
   proteinG: number;
   fatG: number;
   carbsG: number;
+  /** チャット上部のスワイプカードでは影あり、記録ページ内では影なし */
+  shadow?: boolean;
 }) {
   const targetCalories = profile.targetCalories;
   const hasTarget = targetCalories != null && targetCalories > 0;
@@ -32,7 +35,12 @@ export function CaloriesPanel({
       : null;
 
   return (
-    <div className="rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5 shadow-[0_3px_14px_rgba(0,0,0,0.07)]">
+    <div
+      className={cn(
+        "rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5",
+        shadow && "shadow-[0_3px_14px_rgba(0,0,0,0.07)]"
+      )}
+    >
       {/* 上段: 目標チップ(タップで目標設定へ)+ 摂取カロリー */}
       <div className="flex items-start justify-between px-1">
         <Link

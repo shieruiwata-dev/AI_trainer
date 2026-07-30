@@ -65,6 +65,7 @@ export function MealRecordPage({
           proteinG={data.todayProteinG}
           fatG={data.todayFatG}
           carbsG={data.todayCarbsG}
+          shadow={false}
         />
 
         {/* ===== カレンダー + その日の食事 ===== */}
