@@ -72,7 +72,7 @@ export default function OnboardingProposal() {
       const { data } = await supabase
         .from("profiles")
         .select("nutrition_level")
-        .eq("id", auth.user.id)
+        .eq("user_id", auth.user.id)
         .maybeSingle();
       setNutritionLevel((data?.nutrition_level as string | null) ?? null);
     })();
