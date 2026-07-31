@@ -112,28 +112,18 @@ function MacroBar({
   const fmt = (n: number) => n.toFixed(1);
   const hasTarget = target != null && target > 0;
   const ratio = hasTarget ? Math.min(1, value / target!) : 0;
-  const remaining = hasTarget ? Math.max(target! - value, 0) : 0;
 
   return (
     <div>
-      <p className="text-[12px] font-semibold leading-tight">{label}</p>
-      <p className="mt-0 text-[14px] font-bold leading-none [font-variant-numeric:tabular-nums]">
+      <p className="text-[13px] font-semibold leading-tight">{label}</p>
+      <p className="mt-0.5 text-[15px] font-bold leading-none [font-variant-numeric:tabular-nums]">
         <span className="text-primary">{fmt(value)}</span>
         <span className="mx-1 text-muted-foreground">/</span>
         <span className="text-muted-foreground">
           {hasTarget ? `${fmt(target!)} g` : "-- g"}
         </span>
       </p>
-      <p className="mt-0.5 text-[11px] leading-none text-muted-foreground [font-variant-numeric:tabular-nums]">
-        {!hasTarget
-          ? "目標未設定"
-          : value < target!
-            ? `残り ${fmt(remaining)} g`
-            : value === target!
-              ? "達成"
-              : `目標より +${fmt(value - target!)} g`}
-      </p>
-      <div className="mt-1 h-[5px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
+      <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
         {hasTarget && (
           <div
             className="h-full rounded-full bg-primary transition-[width] duration-500"
