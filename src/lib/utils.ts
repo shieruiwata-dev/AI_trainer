@@ -21,3 +21,8 @@ export function formatDateJa(dateStr: string): string {
 export function uid(): string {
   return crypto.randomUUID();
 }
+
+/** 整数を3桁区切りでフォーマット */
+export function formatNumber(value: number): string {
+  return new Intl.NumberFormat("ja-JP").format(value);
+}

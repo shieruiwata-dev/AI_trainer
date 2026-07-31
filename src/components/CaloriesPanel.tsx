@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { calcMacroTargets } from "@/lib/nutrition";
 import type { Profile } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 
 /** 今日の食事パネル(目標チップ + 摂取kcal + PFCゲージ)。チャット上部と食事記録ページで共用 */
 export function CaloriesPanel({
@@ -18,7 +18,7 @@ export function CaloriesPanel({
   proteinG: number;
   fatG: number;
   carbsG: number;
-  /** チャット上部のスワイプカードでは影あり、記録ページ内では影なし */
+  /** チャット上部のスワイプカードでは影あり、食事記録ページ内では影なし */
   shadow?: boolean;
 }) {
   const targetCalories = profile.targetCalories;
@@ -37,7 +37,7 @@ export function CaloriesPanel({
   return (
     <div
       className={cn(
-        "rounded-[18px] border bg-card px-4 pb-3.5 pt-3.5",
+        "rounded-[18px] border bg-card px-3.5 pb-2.5 pt-2.5",
         shadow && "shadow-[0_3px_14px_rgba(0,0,0,0.07)]"
       )}
     >
@@ -47,14 +47,14 @@ export function CaloriesPanel({
           to="/goal"
           aria-label="目標を見る"
           onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1 rounded-[12px] bg-muted px-3.5 py-2 transition-transform active:scale-95"
+          className="flex items-center gap-1 rounded-[12px] bg-muted px-3 py-1.5 transition-transform active:scale-95"
         >
           <span>
-            <span className="block text-[11px] leading-none text-muted-foreground">
+            <span className="block text-[10px] leading-none text-muted-foreground">
               目標
             </span>
-            <span className="mt-1 block text-[15px] font-semibold leading-none [font-variant-numeric:tabular-nums]">
-              {hasTarget ? `${targetCalories} kcal` : "未設定"}
+            <span className="mt-0.5 block text-[13px] font-semibold leading-none [font-variant-numeric:tabular-nums]">
+              {hasTarget ? `${formatNumber(targetCalories)} kcal` : "未設定"}
             </span>
           </span>
           <ChevronDown
@@ -63,27 +63,26 @@ export function CaloriesPanel({
           />
         </Link>
         <div className="text-right">
-          <p className="text-[34px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
-            {todayCalories}
-            <span className="ml-1 text-[15px] font-normal text-muted-foreground">
-              / {hasTarget ? targetCalories : "--"} kcal
+          <p className="text-[28px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+            {formatNumber(todayCalories)}
+            <span className="ml-1 text-[13px] font-normal text-muted-foreground">
+              / {hasTarget ? formatNumber(targetCalories) : "--"} kcal
             </span>
           </p>
-          <p className="mt-1.5 text-[12px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+          <p className="mt-1 text-[11px] text-muted-foreground [font-variant-numeric:tabular-nums]">
             {!hasTarget
               ? "目標未設定"
               : targetCalories! - todayCalories > 0
-                ? `残り ${targetCalories! - todayCalories} kcal`
+                ? `残り ${formatNumber(targetCalories! - todayCalories)} kcal`
                 : targetCalories! - todayCalories === 0
                   ? "達成"
-                  : `目標より +${todayCalories - targetCalories!} kcal`}
+                  : `目標より +${formatNumber(todayCalories - targetCalories!)} kcal`}
           </p>
         </div>
-
       </div>
 
       {/* PFCゲージ(横棒) */}
-      <div className="mt-3 space-y-2.5 px-1">
+      <div className="mt-2 space-y-1.5 px-1">
         <MacroBar
           label="タンパク質"
           value={proteinG}
@@ -117,15 +116,15 @@ function MacroBar({
 
   return (
     <div>
-      <p className="text-[13px] font-semibold">{label}</p>
-      <p className="mt-0.5 text-[15px] font-bold leading-none [font-variant-numeric:tabular-nums]">
+      <p className="text-[12px] font-semibold leading-tight">{label}</p>
+      <p className="mt-0 text-[14px] font-bold leading-none [font-variant-numeric:tabular-nums]">
         <span className="text-primary">{fmt(value)}</span>
         <span className="mx-1 text-muted-foreground">/</span>
         <span className="text-muted-foreground">
           {hasTarget ? `${fmt(target!)} g` : "-- g"}
         </span>
       </p>
-      <p className="mt-1 text-[12px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+      <p className="mt-0.5 text-[11px] leading-none text-muted-foreground [font-variant-numeric:tabular-nums]">
         {!hasTarget
           ? "目標未設定"
           : value < target!
@@ -134,7 +133,7 @@ function MacroBar({
               ? "達成"
               : `目標より +${fmt(value - target!)} g`}
       </p>
-      <div className="mt-1.5 h-[6px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
+      <div className="mt-1 h-[5px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
         {hasTarget && (
           <div
             className="h-full rounded-full bg-primary transition-[width] duration-500"
@@ -145,4 +144,3 @@ function MacroBar({
     </div>
   );
 }
-
