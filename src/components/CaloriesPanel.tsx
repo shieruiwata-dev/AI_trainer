@@ -62,12 +62,24 @@ export function CaloriesPanel({
             strokeWidth={2}
           />
         </Link>
-        <p className="text-[34px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
-          {todayCalories}
-          <span className="ml-1.5 text-[15px] font-normal text-muted-foreground">
-            kcal
-          </span>
-        </p>
+        <div className="text-right">
+          <p className="text-[34px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+            {todayCalories}
+            <span className="ml-1 text-[15px] font-normal text-muted-foreground">
+              {hasTarget ? `/ ${targetCalories} kcal` : "kcal"}
+            </span>
+          </p>
+          <p className="mt-1.5 text-[12px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+            {!hasTarget
+              ? "目標未設定"
+              : targetCalories! - todayCalories > 0
+                ? `残り ${targetCalories! - todayCalories}kcal`
+                : targetCalories! - todayCalories === 0
+                  ? "達成"
+                  : `目標より +${todayCalories - targetCalories!}kcal`}
+          </p>
+        </div>
+
       </div>
 
       {/* PFCゲージ(横棒) */}
