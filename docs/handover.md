@@ -10,7 +10,10 @@
 
 ## 1. プロジェクト概要
 
-- **アプリ**: AIトレーナーとチャットしながらダイエット・筋トレのサポート・記録・モチベーション管理を行うスマホアプリ(FitCoach)
+- **アプリ**: AIトレーナーとチャットしながらダイエット・筋トレのサポート・記録・モチベーション管理を行うスマホアプリ
+- **正式名称「マイサポ」(My Supporter の略。2026-07-30にユーザーが決定)**。
+  旧称は FitCoach。localStorageキー(`fitcoach.*`)やコード内識別子は互換のため変更しない。
+  UI表示(サイドバーのロゴ・index.html・manifest・単一HTMLのtitle)の改名はユーザーの指示待ち
 - **ユーザー(依頼者)**: 岩田さん。日本語でやり取り。スクリーンショット+要望を送ってくる形で進行
 - **分担**: Claude = `src/` のUI全般(主開発者)。柴崎さん = Lovable側でSupabase・Dify・Edge Functions(`supabase/`)・認証まわり
 - **技術**: Vite + React 18 + TypeScript + Tailwind 3(HSLトークン)+ recharts + sonner + lucide-react。一部Radix
