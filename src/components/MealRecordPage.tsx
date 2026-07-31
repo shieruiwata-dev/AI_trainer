@@ -150,20 +150,17 @@ function TestSaveMealButton({ onSaved }: { onSaved: () => Promise<void> }) {
       } = await supabase.auth.getSession();
 
       if (sessionError) {
-        console.error("session error", sessionError);
-        alert("セッション取得に失敗しました");
+        console.error("session_error", sessionError);
+        alert("ログイン情報の取得に失敗しました");
         return;
       }
+
       if (!session?.access_token) {
-        alert("ログインセッションがありません。再ログインしてください。");
+        alert("ログイン状態が切れています。再ログインしてください。");
         return;
       }
-      console.log("access token exists", !!session.access_token);
 
       const { data, error } = await supabase.functions.invoke("save-meal-log", {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
         body: {
           meal_type: "lunch",
           raw_text: "白米200gと鶏胸肉150gを食べた",
@@ -193,7 +190,9 @@ function TestSaveMealButton({ onSaved }: { onSaved: () => Promise<void> }) {
               carbs_g: 3,
             },
           ],
-          analysis_result: { source: "manual_test" },
+          analysis_result: {
+            source: "manual_test",
+          },
         },
       });
 
@@ -210,6 +209,7 @@ function TestSaveMealButton({ onSaved }: { onSaved: () => Promise<void> }) {
       setBusy(false);
     }
   }
+
 
 
   return (
