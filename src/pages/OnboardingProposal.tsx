@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import OnboardingShell from "@/components/OnboardingShell";
 import { GoalProposalCard } from "@/components/GoalProposalCard";
+import { MacroExplainerCard } from "@/components/MacroExplainerCard";
+import { supabase } from "@/integrations/supabase/client";
 import { confirmGoal, sendAiChat } from "@/lib/aiChat";
 import { setOnboardingStep } from "@/lib/onboardingStep";
 import {
@@ -15,6 +17,18 @@ import {
 } from "@/lib/onboardingState";
 import { resetStore } from "@/lib/store";
 
+function kpiNum(proposal: Record<string, unknown>, key: string): number | null {
+  const kpis = proposal.kpis;
+  const raw =
+    kpis && typeof kpis === "object"
+      ? (kpis as Record<string, unknown>)[key]
+      : undefined;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && raw.trim() && !Number.isNaN(Number(raw)))
+    return Number(raw);
+  return null;
+}
+
 /** Step5/6: AIの目標提案とユーザー承認。承認するまで目標は保存しない */
 export default function OnboardingProposal() {
   const navigate = useNavigate();
@@ -22,6 +36,7 @@ export default function OnboardingProposal() {
   const [busy, setBusy] = useState(false);
   const [proposal, setProposal] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState("");
+  const [nutritionLevel, setNutritionLevel] = useState<string | null>(null);
   const requested = useRef(false);
 
   async function request(extra?: string) {
@@ -51,6 +66,16 @@ export default function OnboardingProposal() {
     if (requested.current) return;
     requested.current = true;
     void request();
+    void (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("nutrition_level")
+        .eq("id", auth.user.id)
+        .maybeSingle();
+      setNutritionLevel((data?.nutrition_level as string | null) ?? null);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -84,12 +109,20 @@ export default function OnboardingProposal() {
           目標を作成しています…
         </div>
       ) : proposal ? (
-        <GoalProposalCard
-          proposal={proposal}
-          busy={busy}
-          onStart={() => void approve()}
-          onAdjust={(msg) => void request(msg)}
-        />
+        <>
+          <GoalProposalCard
+            proposal={proposal}
+            busy={busy}
+            onStart={() => void approve()}
+            onAdjust={(msg) => void request(msg)}
+          />
+          <MacroExplainerCard
+            level={nutritionLevel}
+            proteinG={kpiNum(proposal, "protein_g")}
+            fatG={kpiNum(proposal, "fat_g")}
+            carbsG={kpiNum(proposal, "carbs_g")}
+          />
+        </>
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
