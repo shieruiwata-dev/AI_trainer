@@ -131,7 +131,7 @@ export default function Goal() {
         <>
           <SummaryCard plan={plan} />
           <DailyTargetCalendar plan={plan} />
-          <GoalWeightChart data={data} plan={plan} />
+          <GoalWeightChart plan={plan} />
         </>
       )}
     </div>
@@ -303,7 +303,7 @@ function DailyTargetCalendar({ plan }: { plan: GoalPlan }) {
 }
 
 /** 下段: 大きなゴールまでの体重推移。実測(青)+ 目標ペース(点線)+ 小さなゴール(旗の点) */
-function GoalWeightChart({ data, plan }: { data: AppData; plan: GoalPlan }) {
+function GoalWeightChart({ plan }: { plan: GoalPlan }) {
   const chart = useMemo(() => {
     const points = new Map<
       string,
