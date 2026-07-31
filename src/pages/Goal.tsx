@@ -51,7 +51,9 @@ function useGoalPlan(data: AppData) {
     const target = profile.targetWeightKg;
     if (startWeight == null || target == null) return null;
 
-    const endDate = profile.targetDate ?? addDays(startDate, 90);
+    // 期日はユーザーが承認した目標にのみ存在する。無い場合は推測しない
+    const endDate = profile.targetDate;
+    if (!endDate) return null;
     const totalDays = Math.max(1, daysBetween(startDate, endDate));
     const targetOn = (date: string) => {
       const d = Math.min(Math.max(daysBetween(startDate, date), 0), totalDays);

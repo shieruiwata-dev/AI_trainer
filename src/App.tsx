@@ -14,6 +14,11 @@ import Goal from "@/pages/Goal";
 import Settings from "@/pages/Settings";
 import Auth from "@/pages/Auth";
 import OnboardingExperience from "@/pages/OnboardingExperience";
+import OnboardingPurpose from "@/pages/OnboardingPurpose";
+import OnboardingBody from "@/pages/OnboardingBody";
+import OnboardingTimeline from "@/pages/OnboardingTimeline";
+import OnboardingProposal from "@/pages/OnboardingProposal";
+import { GOAL_STEP_ROUTES, isGoalStep } from "@/lib/onboardingStep";
 import NotFound from "@/pages/NotFound";
 import { supabase } from "@/integrations/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabaseConfig";
@@ -45,10 +50,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** onboarding_completed が false のユーザーを経験ヒアリングへ誘導する */
+/** 経験ヒアリング / 目標設計が未完了のユーザーを該当ステップへ誘導する */
 function RequireOnboarded({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<"loading" | "done" | "todo">(
-    isSupabaseConfigured ? "loading" : "done"
+  const [redirect, setRedirect] = useState<string | null | "loading">(
+    isSupabaseConfigured ? "loading" : null
   );
 
   useEffect(() => {
@@ -59,18 +64,25 @@ function RequireOnboarded({ children }: { children: React.ReactNode }) {
       if (!userId) return;
       const { data: profile } = await supabase
         .from("profiles")
-        .select("onboarding_completed")
+        .select("onboarding_completed, onboarding_step")
         .eq("user_id", userId)
         .maybeSingle();
-      if (!cancelled) setState(profile?.onboarding_completed ? "done" : "todo");
+      if (cancelled) return;
+      if (!profile?.onboarding_completed) {
+        setRedirect("/onboarding/experience");
+      } else if (isGoalStep(profile.onboarding_step)) {
+        setRedirect(GOAL_STEP_ROUTES[profile.onboarding_step]);
+      } else {
+        setRedirect(null);
+      }
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (state === "loading") return null;
-  if (state === "todo") return <Navigate to="/onboarding/experience" replace />;
+  if (redirect === "loading") return null;
+  if (redirect) return <Navigate to={redirect} replace />;
   return <>{children}</>;
 }
 
@@ -104,6 +116,38 @@ export default function App() {
                 }
               />
               <Route
+                path="/onboarding/purpose"
+                element={
+                  <RequireAuth>
+                    <OnboardingPurpose />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/body"
+                element={
+                  <RequireAuth>
+                    <OnboardingBody />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/timeline"
+                element={
+                  <RequireAuth>
+                    <OnboardingTimeline />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/proposal"
+                element={
+                  <RequireAuth>
+                    <OnboardingProposal />
+                  </RequireAuth>
+                }
+              />
+              <Route
                 path="/"
                 element={
                   <Protected>
@@ -122,9 +166,9 @@ export default function App() {
               <Route
                 path="/goal"
                 element={
-                  <RequireAuth>
+                  <Protected>
                     <Goal />
-                  </RequireAuth>
+                  </Protected>
                 }
               />
               <Route

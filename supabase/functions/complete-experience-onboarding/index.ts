@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
         pfc_knowledge: answers.pfc_knowledge,
         food_logging_experience: answers.food_logging_experience,
         experience_assessed_at: new Date().toISOString(),
-        onboarding_step: "goal",
+        onboarding_step: "goal_purpose",
         onboarding_completed: true,
         onboarding_completed_at: new Date().toISOString(),
       },
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       return json(500, { ok: false, message: "保存に失敗しました。" });
     }
 
-    return json(200, { ok: true, next: "goal" });
+    return json(200, { ok: true, next: "goal_purpose" });
   } catch (error) {
     console.error("complete_experience_onboarding_unhandled", error);
     return json(500, { ok: false, message: "保存に失敗しました。" });
