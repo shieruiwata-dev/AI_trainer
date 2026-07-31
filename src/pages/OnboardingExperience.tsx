@@ -74,7 +74,7 @@ export default function OnboardingExperience() {
         { body: final }
       );
       if (error || data?.ok !== true) throw error ?? new Error("failed");
-      navigate("/goal", { replace: true });
+      navigate("/onboarding/purpose", { replace: true });
     } catch {
       toast.error("保存に失敗しました。もう一度お試しください。");
     } finally {
