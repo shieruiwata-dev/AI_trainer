@@ -112,7 +112,6 @@ function MacroBar({
   const fmt = (n: number) => n.toFixed(1);
   const hasTarget = target != null && target > 0;
   const ratio = hasTarget ? Math.min(1, value / target!) : 0;
-  const remaining = hasTarget ? Math.max(target! - value, 0) : 0;
 
   return (
     <div>
