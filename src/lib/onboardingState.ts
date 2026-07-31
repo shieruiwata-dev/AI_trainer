@@ -90,6 +90,9 @@ function normalizeNumber(value: unknown): number | null {
 function normalizePurpose(value: unknown): OnboardingState["purpose_type"] | null {
   const raw = String(value ?? "").trim().toLowerCase();
   if (!raw) return null;
+  if (["strength", "筋力"].includes(raw)) return "strength";
+  if (["health", "healthy", "健康"].includes(raw)) return "health";
+  if (["undecided", "unknown", "未定"].includes(raw)) return "undecided";
   if (["cut", "diet", "lose", "loss", "fat_loss", "減量", "ダイエット"].includes(raw)) return "cut";
   if (["bulk", "gain", "muscle_gain", "増量", "バルク", "筋肥大"].includes(raw)) return "bulk";
   if (["maintain", "maintenance", "keep", "維持", "キープ"].includes(raw)) return "maintain";
