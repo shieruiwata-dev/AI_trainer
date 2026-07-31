@@ -19,6 +19,7 @@ export interface OnboardingState {
   target_date?: string;
   duration_months?: number;
   available_training_days?: number;
+  activity_level?: string;
 }
 
 const STORAGE_KEY = "fitcoach.onboardingState.v1";
@@ -33,6 +34,7 @@ const ONBOARDING_KEYS = [
   "target_date",
   "duration_months",
   "available_training_days",
+  "activity_level",
 ] as const;
 
 const NUMERIC_KEYS = new Set([
@@ -216,6 +218,7 @@ const EMPTY_SHAPE: Record<keyof OnboardingState, true> = {
   target_date: true,
   duration_months: true,
   available_training_days: true,
+  activity_level: true,
 };
 
 /**
