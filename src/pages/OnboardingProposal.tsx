@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button";
 import OnboardingShell from "@/components/OnboardingShell";
 import { GoalProposalCard } from "@/components/GoalProposalCard";
 import { MacroExplainerCard } from "@/components/MacroExplainerCard";
+import {
+  WeightConfirmCard,
+  type WeightCandidate,
+} from "@/components/WeightConfirmCard";
+import { GoalSwitchDialog } from "@/components/GoalSwitchDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { confirmGoal, sendAiChat } from "@/lib/aiChat";
 import { setOnboardingStep } from "@/lib/onboardingStep";
@@ -37,7 +42,16 @@ export default function OnboardingProposal() {
   const [proposal, setProposal] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState("");
   const [nutritionLevel, setNutritionLevel] = useState<string | null>(null);
+  const [weightCandidates, setWeightCandidates] = useState<WeightCandidate[]>([]);
+  const [confirmedWeight, setConfirmedWeight] = useState<number | null>(null);
+  const [activeGoal, setActiveGoal] = useState<{
+    purpose: string | null;
+    title: string | null;
+  } | null>(null);
+  const [switchOpen, setSwitchOpen] = useState(false);
   const requested = useRef(false);
+
+  const needsWeightConfirm = weightCandidates.length > 1;
 
   async function request(extra?: string) {
     setLoading(true);
@@ -69,21 +83,97 @@ export default function OnboardingProposal() {
     void (async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("nutrition_level")
-        .eq("user_id", auth.user.id)
-        .maybeSingle();
-      setNutritionLevel((data?.nutrition_level as string | null) ?? null);
+      const [profileRes, measureRes, goalRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("nutrition_level, current_weight_kg")
+          .eq("user_id", auth.user.id)
+          .maybeSingle(),
+        supabase
+          .from("body_measurements")
+          .select("weight_kg, measured_at")
+          .eq("user_id", auth.user.id)
+          .not("weight_kg", "is", null)
+          .order("measured_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("goals")
+          .select("purpose_type, goal_type, title")
+          .eq("user_id", auth.user.id)
+          .eq("is_active", true)
+          .maybeSingle(),
+      ]);
+
+      setNutritionLevel(
+        (profileRes.data?.nutrition_level as string | null) ?? null
+      );
+      if (goalRes.data) {
+        setActiveGoal({
+          purpose:
+            (goalRes.data.purpose_type as string | null) ??
+            (goalRes.data.goal_type as string | null) ??
+            null,
+          title: (goalRes.data.title as string | null) ?? null,
+        });
+      }
+
+      const state = loadOnboardingState();
+      const raw: WeightCandidate[] = [];
+      const push = (id: string, label: string, note: string, v: unknown) => {
+        const n = typeof v === "number" ? v : Number(v);
+        if (!Number.isFinite(n) || n <= 0) return;
+        if (raw.some((c) => Math.abs(c.weightKg - n) < 0.35)) return;
+        raw.push({ id, label, note, weightKg: Math.round(n * 10) / 10 });
+      };
+      push(
+        "input",
+        "今回入力した体重",
+        "オンボーディングで入力した値",
+        state.current_weight_kg
+      );
+      push(
+        "measurement",
+        "直近の体重記録",
+        measureRes.data?.measured_at
+          ? new Date(measureRes.data.measured_at as string).toLocaleDateString(
+              "ja-JP"
+            )
+          : "記録された測定値",
+        measureRes.data?.weight_kg
+      );
+      push(
+        "profile",
+        "プロフィールの体重",
+        "登録済みの現在体重",
+        profileRes.data?.current_weight_kg
+      );
+      if (raw.length > 1) setWeightCandidates(raw);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function handleStart() {
+    if (!proposal) return;
+    if (needsWeightConfirm && confirmedWeight == null) return;
+    const nextPurpose =
+      typeof proposal.purpose_type === "string" ? proposal.purpose_type : null;
+    if (activeGoal && nextPurpose && activeGoal.purpose !== nextPurpose) {
+      setSwitchOpen(true);
+      return;
+    }
+    void approve();
+  }
 
   async function approve() {
     if (!proposal) return;
     setBusy(true);
     try {
-      await confirmGoal(proposal);
+      const payload =
+        confirmedWeight != null
+          ? { ...proposal, current_weight_kg: confirmedWeight }
+          : proposal;
+      await confirmGoal(payload);
       await setOnboardingStep("done");
       resetStore();
       toast.success("目標を保存しました。今日からこの方針で進めましょう。");
@@ -92,6 +182,7 @@ export default function OnboardingProposal() {
       toast.error("目標の保存に失敗しました。もう一度お試しください。");
     } finally {
       setBusy(false);
+      setSwitchOpen(false);
     }
   }
 
@@ -113,8 +204,34 @@ export default function OnboardingProposal() {
           <GoalProposalCard
             proposal={proposal}
             busy={busy}
-            onStart={() => void approve()}
+            startDisabled={needsWeightConfirm && confirmedWeight == null}
+            onStart={handleStart}
             onAdjust={(msg) => void request(msg)}
+          />
+          {needsWeightConfirm && (
+            <WeightConfirmCard
+              candidates={weightCandidates}
+              value={confirmedWeight}
+              onConfirm={(w) => {
+                setConfirmedWeight(w);
+                const state = loadOnboardingState();
+                saveOnboardingState(
+                  mergeOnboardingState(state, { current_weight_kg: w })
+                );
+              }}
+            />
+          )}
+          <GoalSwitchDialog
+            open={switchOpen}
+            busy={busy}
+            currentGoalLabel={activeGoal?.title ?? activeGoal?.purpose ?? null}
+            nextGoalLabel={
+              typeof proposal.goal_title === "string"
+                ? proposal.goal_title
+                : null
+            }
+            onConfirm={() => void approve()}
+            onCancel={() => setSwitchOpen(false)}
           />
           <MacroExplainerCard
             level={nutritionLevel}

@@ -84,12 +84,14 @@ export function GoalProposalCard({
   proposal,
   decision,
   busy = false,
+  startDisabled = false,
   onStart,
   onAdjust,
 }: {
   proposal: P;
   decision?: "confirm" | "reject";
   busy?: boolean;
+  startDisabled?: boolean;
   onStart: () => void;
   onAdjust: (message: string) => void;
 }) {
@@ -213,13 +215,18 @@ export function GoalProposalCard({
         <div className="px-4 pb-4">
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || startDisabled}
             onClick={onStart}
             className="flex h-11 w-full items-center justify-center gap-1.5 rounded-full bg-primary text-[15px] font-medium text-primary-foreground transition-transform active:scale-[0.97] disabled:opacity-50"
           >
             <Check className="h-4 w-4" strokeWidth={2.4} />
             この目標で始める
           </button>
+          {startDisabled && (
+            <p className="mt-2 text-center text-[12px] text-muted-foreground">
+              現在の体重を確定すると開始できます
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
             {["もっと攻めたい", "もう少しゆるくしたい", "期限を変える"].map(
               (label) => (

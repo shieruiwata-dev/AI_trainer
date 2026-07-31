@@ -1,4 +1,6 @@
-import { Info } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, Info } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type NutritionLevel = "beginner" | "intermediate" | "advanced" | string;
 
@@ -37,18 +39,32 @@ export function MacroExplainerCard({
   fatG: number | null;
   carbsG: number | null;
 }) {
-  if (level === "advanced") return null;
-  if (proteinG == null && fatG == null && carbsG == null) return null;
+  const beginner = level !== "intermediate" && level !== "advanced";
+  const [open, setOpen] = useState(level === "beginner" || !level);
 
-  const beginner = level !== "intermediate";
+  if (proteinG == null && fatG == null && carbsG == null) return null;
 
   return (
     <div className="mt-3 overflow-hidden rounded-[18px] border bg-card">
-      <div className="flex items-center gap-1.5 border-b border-[#f0f0f0] px-4 py-3 text-[13px] font-semibold text-muted-foreground">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "flex w-full items-center gap-1.5 px-4 py-3 text-[13px] font-semibold text-muted-foreground",
+          open && "border-b border-[#f0f0f0]"
+        )}
+      >
         <Info className="h-[16px] w-[16px]" strokeWidth={1.8} />
         この数値の意味
-      </div>
-      <div className="px-4 py-3.5">
+        <ChevronDown
+          className={cn(
+            "ml-auto h-4 w-4 transition-transform",
+            open && "rotate-180"
+          )}
+          strokeWidth={1.8}
+        />
+      </button>
+      <div className={cn("px-4 py-3.5", !open && "hidden")}>
         {beginner ? (
           <>
             <p className="text-[13px] font-semibold text-foreground">
