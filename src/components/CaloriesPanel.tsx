@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { calcMacroTargets } from "@/lib/nutrition";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
