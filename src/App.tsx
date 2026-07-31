@@ -45,10 +45,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** onboarding_completed が false のユーザーを経験ヒアリングへ誘導する */
+/** 経験ヒアリング / 目標設計が未完了のユーザーを該当ステップへ誘導する */
 function RequireOnboarded({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<"loading" | "done" | "todo">(
-    isSupabaseConfigured ? "loading" : "done"
+  const [redirect, setRedirect] = useState<string | null | "loading">(
+    isSupabaseConfigured ? "loading" : null
   );
 
   useEffect(() => {
@@ -59,18 +59,25 @@ function RequireOnboarded({ children }: { children: React.ReactNode }) {
       if (!userId) return;
       const { data: profile } = await supabase
         .from("profiles")
-        .select("onboarding_completed")
+        .select("onboarding_completed, onboarding_step")
         .eq("user_id", userId)
         .maybeSingle();
-      if (!cancelled) setState(profile?.onboarding_completed ? "done" : "todo");
+      if (cancelled) return;
+      if (!profile?.onboarding_completed) {
+        setRedirect("/onboarding/experience");
+      } else if (isGoalStep(profile.onboarding_step)) {
+        setRedirect(GOAL_STEP_ROUTES[profile.onboarding_step]);
+      } else {
+        setRedirect(null);
+      }
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (state === "loading") return null;
-  if (state === "todo") return <Navigate to="/onboarding/experience" replace />;
+  if (redirect === "loading") return null;
+  if (redirect) return <Navigate to={redirect} replace />;
   return <>{children}</>;
 }
 
