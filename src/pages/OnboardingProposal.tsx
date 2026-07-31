@@ -11,6 +11,11 @@ import {
   type WeightCandidate,
 } from "@/components/WeightConfirmCard";
 import { GoalSwitchDialog } from "@/components/GoalSwitchDialog";
+import {
+  LearningContentCard,
+  type OnboardingContent,
+} from "@/components/LearningContentCard";
+import { VideoPlayerDialog } from "@/components/VideoPlayerDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { confirmGoal, sendAiChat } from "@/lib/aiChat";
 import { setOnboardingStep } from "@/lib/onboardingStep";
@@ -49,6 +54,12 @@ export default function OnboardingProposal() {
     title: string | null;
   } | null>(null);
   const [switchOpen, setSwitchOpen] = useState(false);
+  const [trainingLevel, setTrainingLevel] = useState<string | null>(null);
+  const [contents, setContents] = useState<OnboardingContent[]>([]);
+  const [contentProgress, setContentProgress] = useState<
+    Record<string, string>
+  >({});
+  const [playing, setPlaying] = useState<OnboardingContent | null>(null);
   const requested = useRef(false);
 
   const needsWeightConfirm = weightCandidates.length > 1;
@@ -86,7 +97,7 @@ export default function OnboardingProposal() {
       const [profileRes, measureRes, goalRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("nutrition_level, current_weight_kg")
+          .select("nutrition_level, training_level, current_weight_kg")
           .eq("user_id", auth.user.id)
           .maybeSingle(),
         supabase
@@ -105,9 +116,11 @@ export default function OnboardingProposal() {
           .maybeSingle(),
       ]);
 
-      setNutritionLevel(
-        (profileRes.data?.nutrition_level as string | null) ?? null
-      );
+      const nLevel = (profileRes.data?.nutrition_level as string | null) ?? null;
+      const tLevel = (profileRes.data?.training_level as string | null) ?? null;
+      setNutritionLevel(nLevel);
+      setTrainingLevel(tLevel);
+      void loadContents(auth.user.id, nLevel, tLevel);
       if (goalRes.data) {
         setActiveGoal({
           purpose:
@@ -165,6 +178,75 @@ export default function OnboardingProposal() {
     void approve();
   }
 
+  async function loadContents(
+    userId: string,
+    nLevel: string | null,
+    tLevel: string | null
+  ) {
+    const wanted: { target_type: string; target_level: string }[] = [];
+    if (nLevel && nLevel !== "advanced")
+      wanted.push({ target_type: "nutrition", target_level: nLevel });
+    if (tLevel && tLevel !== "advanced")
+      wanted.push({ target_type: "training", target_level: tLevel });
+    if (wanted.length === 0) return;
+
+    const { data, error } = await supabase
+      .from("onboarding_contents")
+      .select(
+        "id, title, description, video_url, thumbnail_url, duration_seconds, status, target_type, target_level"
+      )
+      .in("status", ["published", "coming_soon"])
+      .in(
+        "target_type",
+        wanted.map((w) => w.target_type)
+      )
+      .order("sort_order", { ascending: true });
+    if (error || !data) return;
+
+    const filtered = data.filter((row) =>
+      wanted.some(
+        (w) =>
+          w.target_type === row.target_type && w.target_level === row.target_level
+      )
+    ) as OnboardingContent[];
+    setContents(filtered);
+
+    if (filtered.length > 0) {
+      const { data: prog } = await supabase
+        .from("user_content_progress")
+        .select("content_id, status")
+        .eq("user_id", userId)
+        .in(
+          "content_id",
+          filtered.map((c) => c.id)
+        );
+      if (prog) {
+        setContentProgress(
+          Object.fromEntries(prog.map((p) => [p.content_id, p.status]))
+        );
+      }
+    }
+  }
+
+  async function saveProgress(
+    content: OnboardingContent,
+    status: "skipped" | "completed"
+  ) {
+    setContentProgress((prev) => ({ ...prev, [content.id]: status }));
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return;
+    await supabase.from("user_content_progress").upsert(
+      {
+        user_id: auth.user.id,
+        content_id: content.id,
+        status,
+        skipped_at: status === "skipped" ? new Date().toISOString() : null,
+        completed_at: status === "completed" ? new Date().toISOString() : null,
+      },
+      { onConflict: "user_id,content_id" }
+    );
+  }
+
   async function approve() {
     if (!proposal) return;
     setBusy(true);
@@ -207,20 +289,63 @@ export default function OnboardingProposal() {
             startDisabled={needsWeightConfirm && confirmedWeight == null}
             onStart={handleStart}
             onAdjust={(msg) => void request(msg)}
+            footerSlot={
+              <>
+                {needsWeightConfirm && (
+                  <WeightConfirmCard
+                    candidates={weightCandidates}
+                    value={confirmedWeight}
+                    onConfirm={(w) => {
+                      setConfirmedWeight(w);
+                      const state = loadOnboardingState();
+                      saveOnboardingState(
+                        mergeOnboardingState(state, { current_weight_kg: w })
+                      );
+                    }}
+                  />
+                )}
+                <MacroExplainerCard
+                  level={nutritionLevel}
+                  proteinG={kpiNum(proposal, "protein_g")}
+                  fatG={kpiNum(proposal, "fat_g")}
+                  carbsG={kpiNum(proposal, "carbs_g")}
+                />
+                <LearningContentCard
+                  heading={
+                    nutritionLevel === "beginner"
+                      ? "はじめる前に3分で確認"
+                      : "食事管理のポイント"
+                  }
+                  description="カロリーとPFCの基本を短い動画で確認できます。"
+                  level={nutritionLevel}
+                  contents={contents.filter(
+                    (c) => c.target_type === "nutrition"
+                  )}
+                  progress={contentProgress}
+                  onWatch={(c) => setPlaying(c)}
+                  onSkip={(c) => void saveProgress(c, "skipped")}
+                />
+                <LearningContentCard
+                  heading={
+                    trainingLevel === "beginner"
+                      ? "筋トレの基礎を確認"
+                      : "トレーニングのポイント"
+                  }
+                  description="フォームと負荷設定の基本を短い動画で確認できます。"
+                  level={trainingLevel}
+                  contents={contents.filter((c) => c.target_type === "training")}
+                  progress={contentProgress}
+                  onWatch={(c) => setPlaying(c)}
+                  onSkip={(c) => void saveProgress(c, "skipped")}
+                />
+              </>
+            }
           />
-          {needsWeightConfirm && (
-            <WeightConfirmCard
-              candidates={weightCandidates}
-              value={confirmedWeight}
-              onConfirm={(w) => {
-                setConfirmedWeight(w);
-                const state = loadOnboardingState();
-                saveOnboardingState(
-                  mergeOnboardingState(state, { current_weight_kg: w })
-                );
-              }}
-            />
-          )}
+          <VideoPlayerDialog
+            content={playing}
+            onClose={() => setPlaying(null)}
+            onEnded={(c) => void saveProgress(c, "completed")}
+          />
           <GoalSwitchDialog
             open={switchOpen}
             busy={busy}
@@ -232,12 +357,6 @@ export default function OnboardingProposal() {
             }
             onConfirm={() => void approve()}
             onCancel={() => setSwitchOpen(false)}
-          />
-          <MacroExplainerCard
-            level={nutritionLevel}
-            proteinG={kpiNum(proposal, "protein_g")}
-            fatG={kpiNum(proposal, "fat_g")}
-            carbsG={kpiNum(proposal, "carbs_g")}
           />
         </>
       ) : (
