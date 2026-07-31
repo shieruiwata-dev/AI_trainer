@@ -16,9 +16,10 @@ import Auth from "@/pages/Auth";
 import OnboardingExperience from "@/pages/OnboardingExperience";
 import OnboardingPurpose from "@/pages/OnboardingPurpose";
 import OnboardingBody from "@/pages/OnboardingBody";
+import OnboardingActivity from "@/pages/OnboardingActivity";
 import OnboardingTimeline from "@/pages/OnboardingTimeline";
 import OnboardingProposal from "@/pages/OnboardingProposal";
-import { GOAL_STEP_ROUTES, isGoalStep } from "@/lib/onboardingStep";
+import { GOAL_STEP_ROUTES, isGoalStep, type GoalStep } from "@/lib/onboardingStep";
 import NotFound from "@/pages/NotFound";
 import { supabase } from "@/integrations/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabaseConfig";
@@ -64,12 +65,16 @@ function RequireOnboarded({ children }: { children: React.ReactNode }) {
       if (!userId) return;
       const { data: profile } = await supabase
         .from("profiles")
-        .select("onboarding_completed, onboarding_step")
+        .select("onboarding_completed, onboarding_step, experience_assessed_at, training_level, nutrition_level")
         .eq("user_id", userId)
         .maybeSingle();
       if (cancelled) return;
       if (!profile?.onboarding_completed) {
-        setRedirect("/onboarding/experience");
+        if (isGoalStep(profile?.onboarding_step)) {
+          setRedirect(GOAL_STEP_ROUTES[profile.onboarding_step as GoalStep]);
+        } else {
+          setRedirect("/onboarding/purpose");
+        }
       } else if (isGoalStep(profile.onboarding_step)) {
         setRedirect(GOAL_STEP_ROUTES[profile.onboarding_step]);
       } else {
@@ -128,6 +133,14 @@ export default function App() {
                 element={
                   <RequireAuth>
                     <OnboardingBody />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/activity"
+                element={
+                  <RequireAuth>
+                    <OnboardingActivity />
                   </RequireAuth>
                 }
               />

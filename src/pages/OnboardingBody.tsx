@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OnboardingShell from "@/components/OnboardingShell";
-import { setOnboardingStep } from "@/lib/onboardingStep";
+import {
+  GOAL_STEP_INDEX,
+  GOAL_STEP_TOTAL,
+  setOnboardingStep,
+} from "@/lib/onboardingStep";
 import {
   loadOnboardingState,
   mergeOnboardingState,
@@ -32,14 +36,14 @@ export default function OnboardingBody() {
         sex,
       })
     );
-    void setOnboardingStep("goal_timeline");
-    navigate("/onboarding/timeline", { replace: true });
+    void setOnboardingStep("goal_activity");
+    navigate("/onboarding/activity", { replace: true });
   }
 
   return (
     <OnboardingShell
-      step={2}
-      total={4}
+      step={GOAL_STEP_INDEX.goal_body}
+      total={GOAL_STEP_TOTAL}
       title="身体情報を教えてください"
       description="目標づくりの計算に使います。"
       onBack={() => navigate("/onboarding/purpose")}

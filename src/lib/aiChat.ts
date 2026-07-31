@@ -53,17 +53,25 @@ export async function sendAiChat(params: {
   conversationId?: string | null;
   /** 目標設計オンボーディングで収集済みの項目 */
   onboardingState?: Record<string, unknown> | null;
+  /** 経験ヒアリングの判定結果(training_level / nutrition_level など) */
+  experienceProfile?: Record<string, unknown> | null;
 }): Promise<AiChatResponse> {
   try {
-    const goalContext = params.onboardingState
-      ? { onboarding_state: params.onboardingState }
-      : null;
+    const goalContext =
+      params.onboardingState || params.experienceProfile
+        ? {
+            ...(params.onboardingState
+              ? { onboarding_state: params.onboardingState }
+              : {}),
+            ...(params.experienceProfile ?? {}),
+          }
+        : null;
     console.log("[ai-chat] goal_context before invoke", goalContext);
     console.log("ai-chat invoke start", {
       functionName: "ai-chat",
       hasMessage: Boolean(params.message.trim()),
       hasImage: Boolean(params.imagePath),
-      hasOnboardingState: Boolean(goalContext?.onboarding_state),
+      hasOnboardingState: Boolean(goalContext),
     });
     const { data, error } = await supabase.functions.invoke("ai-chat", {
       body: {

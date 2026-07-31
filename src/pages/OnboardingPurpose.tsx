@@ -1,7 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import OnboardingShell from "@/components/OnboardingShell";
-import { setOnboardingStep } from "@/lib/onboardingStep";
+import {
+  GOAL_STEP_INDEX,
+  GOAL_STEP_TOTAL,
+  setOnboardingStep,
+} from "@/lib/onboardingStep";
 import {
   loadOnboardingState,
   mergeOnboardingState,
@@ -31,8 +35,8 @@ export default function OnboardingPurpose() {
 
   return (
     <OnboardingShell
-      step={1}
-      total={4}
+      step={GOAL_STEP_INDEX.goal_purpose}
+      total={GOAL_STEP_TOTAL}
       title="今、最も近い目標を教えてください"
       description="ここではまだ目標は決まりません。あとで一緒に作ります。"
     >

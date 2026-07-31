@@ -18,7 +18,15 @@ import {
 import { VideoPlayerDialog } from "@/components/VideoPlayerDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { confirmGoal, sendAiChat } from "@/lib/aiChat";
-import { setOnboardingStep } from "@/lib/onboardingStep";
+import {
+  GOAL_STEP_INDEX,
+  GOAL_STEP_TOTAL,
+  completeOnboarding,
+  fetchExperienceProfile,
+  isExperienceAssessed,
+  setOnboardingStep,
+  type ExperienceProfile,
+} from "@/lib/onboardingStep";
 import {
   loadOnboardingState,
   mergeOnboardingState,
@@ -39,7 +47,7 @@ function kpiNum(proposal: Record<string, unknown>, key: string): number | null {
   return null;
 }
 
-/** Step5/6: AIの目標提案とユーザー承認。承認するまで目標は保存しない */
+/** Step6〜9: AIの目標提案とユーザー承認。承認するまで目標は保存しない */
 export default function OnboardingProposal() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -60,15 +68,30 @@ export default function OnboardingProposal() {
     Record<string, string>
   >({});
   const [playing, setPlaying] = useState<OnboardingContent | null>(null);
+  const [experience, setExperience] = useState<ExperienceProfile | null>(null);
   const requested = useRef(false);
 
   const needsWeightConfirm = weightCandidates.length > 1;
 
-  async function request(extra?: string) {
+  async function request(extra?: string, profile?: ExperienceProfile) {
+    const exp = profile ?? experience;
+    // 経験ヒアリング未完了なら目標案生成APIを呼ばない
+    if (!isExperienceAssessed(exp)) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const state = loadOnboardingState();
       const res = await sendAiChat({
+        experienceProfile: {
+          training_level: exp!.training_level,
+          nutrition_level: exp!.nutrition_level,
+          training_experience_months: exp!.training_experience_months,
+          training_load_management: exp!.training_load_management,
+          pfc_knowledge: exp!.pfc_knowledge,
+          food_logging_experience: exp!.food_logging_experience,
+        },
         message:
           extra ??
           "ヒアリング内容をもとに、目標プランを提案してください。目標体重・期日・カロリー・PFCを含めてください。",
@@ -90,7 +113,18 @@ export default function OnboardingProposal() {
   useEffect(() => {
     if (requested.current) return;
     requested.current = true;
-    void request();
+    void (async () => {
+      const exp = await fetchExperienceProfile();
+      setExperience(exp);
+      if (!isExperienceAssessed(exp)) {
+        await setOnboardingStep("experience");
+        navigate("/onboarding/experience", { replace: true });
+        return;
+      }
+      setNutritionLevel(exp?.nutrition_level ?? null);
+      setTrainingLevel(exp?.training_level ?? null);
+      void request(undefined, exp!);
+    })();
     void (async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) return;
@@ -118,8 +152,6 @@ export default function OnboardingProposal() {
 
       const nLevel = (profileRes.data?.nutrition_level as string | null) ?? null;
       const tLevel = (profileRes.data?.training_level as string | null) ?? null;
-      setNutritionLevel(nLevel);
-      setTrainingLevel(tLevel);
       void loadContents(auth.user.id, nLevel, tLevel);
       if (goalRes.data) {
         setActiveGoal({
@@ -256,7 +288,7 @@ export default function OnboardingProposal() {
           ? { ...proposal, current_weight_kg: confirmedWeight }
           : proposal;
       await confirmGoal(payload);
-      await setOnboardingStep("done");
+      await completeOnboarding();
       resetStore();
       toast.success("目標を保存しました。今日からこの方針で進めましょう。");
       navigate("/goal", { replace: true });
@@ -270,8 +302,8 @@ export default function OnboardingProposal() {
 
   return (
     <OnboardingShell
-      step={4}
-      total={4}
+      step={GOAL_STEP_INDEX.goal_proposal}
+      total={GOAL_STEP_TOTAL}
       title="AIからの目標プラン"
       description="内容を確認して、納得できたら開始してください。"
       onBack={() => navigate("/onboarding/timeline")}
