@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OnboardingShell from "@/components/OnboardingShell";
-import { setOnboardingStep } from "@/lib/onboardingStep";
+import {
+  GOAL_STEP_INDEX,
+  GOAL_STEP_TOTAL,
+  setOnboardingStep,
+} from "@/lib/onboardingStep";
 import {
   loadOnboardingState,
   mergeOnboardingState,
@@ -12,28 +16,24 @@ import {
 
 const DURATIONS = [1, 2, 3, 6, 12];
 
-/** Step4: 期限・希望ペース。期日はここでユーザーが決めるまで作らない */
+/** Step5: 期限・希望ペース。期日はここでユーザーが決めるまで作らない */
 export default function OnboardingTimeline() {
   const navigate = useNavigate();
   const saved = loadOnboardingState();
   const [months, setMonths] = useState<number | null>(
     saved.duration_months ?? null
   );
-  const [days, setDays] = useState<number | null>(
-    saved.available_training_days ?? null
-  );
   const [targetWeight, setTargetWeight] = useState(
     saved.target_weight_kg?.toString() ?? ""
   );
 
-  const valid = months !== null && days !== null;
+  const valid = months !== null;
 
   function next() {
     if (!valid) return;
     saveOnboardingState(
       mergeOnboardingState(loadOnboardingState(), {
         duration_months: months,
-        available_training_days: days,
         target_weight_kg: targetWeight,
       })
     );
@@ -43,11 +43,11 @@ export default function OnboardingTimeline() {
 
   return (
     <OnboardingShell
-      step={4}
-      total={4}
+      step={GOAL_STEP_INDEX.target_period}
+      total={GOAL_STEP_TOTAL}
       title="いつまでに、どのくらいのペースで?"
       description="ここで決めた期間をもとにAIが目標を提案します。"
-      onBack={() => navigate("/onboarding/body")}
+      onBack={() => navigate("/onboarding/experience")}
     >
       <div className="flex flex-col gap-6">
         <div>
@@ -61,24 +61,6 @@ export default function OnboardingTimeline() {
                 className="rounded-xl active:scale-95"
               >
                 {m}ヶ月
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-2 text-sm font-medium text-muted-foreground">
-            週に運動できる日数
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-              <Button
-                key={d}
-                variant={days === d ? "default" : "outline"}
-                onClick={() => setDays(d)}
-                className="w-12 rounded-xl px-0 active:scale-95"
-              >
-                {d}
               </Button>
             ))}
           </div>
