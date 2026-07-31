@@ -168,8 +168,18 @@ function SummaryCard({ plan }: { plan: GoalPlan }) {
               kg
             </span>
           </p>
+          <p className="mt-1 text-[11px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+            現在 {plan.currentWeight.toFixed(1)}kg → 目標 {plan.target.toFixed(1)}kg
+          </p>
         </div>
       </div>
+
+      {plan.excludedCount > 0 && (
+        <p className="mt-3 rounded-[10px] bg-secondary px-3 py-2 text-[11px] leading-[1.5] text-muted-foreground">
+          未確定の体重記録 {plan.excludedCount} 件は異常値のため、残り体重とグラフから除外しています。
+        </p>
+      )}
+
 
       {/* 期間の進み具合 */}
       <div className="mt-4">
