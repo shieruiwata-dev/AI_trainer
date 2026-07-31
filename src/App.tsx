@@ -116,6 +116,38 @@ export default function App() {
                 }
               />
               <Route
+                path="/onboarding/purpose"
+                element={
+                  <RequireAuth>
+                    <OnboardingPurpose />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/body"
+                element={
+                  <RequireAuth>
+                    <OnboardingBody />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/timeline"
+                element={
+                  <RequireAuth>
+                    <OnboardingTimeline />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/proposal"
+                element={
+                  <RequireAuth>
+                    <OnboardingProposal />
+                  </RequireAuth>
+                }
+              />
+              <Route
                 path="/"
                 element={
                   <Protected>
