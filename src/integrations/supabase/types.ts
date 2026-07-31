@@ -518,6 +518,60 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_contents: {
+        Row: {
+          content_key: string
+          content_type: string
+          created_at: string
+          description: string | null
+          duration_seconds: number | null
+          id: string
+          is_skippable: boolean
+          sort_order: number
+          status: string
+          target_level: string
+          target_type: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          content_key: string
+          content_type?: string
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_skippable?: boolean
+          sort_order?: number
+          status?: string
+          target_level: string
+          target_type: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          content_key?: string
+          content_type?: string
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_skippable?: boolean
+          sort_order?: number
+          status?: string
+          target_level?: string
+          target_type?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       pending_actions: {
         Row: {
           action_type: string
@@ -712,6 +766,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_content_progress: {
+        Row: {
+          completed_at: string | null
+          content_id: string
+          created_at: string
+          id: string
+          progress_seconds: number
+          skipped_at: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          content_id: string
+          created_at?: string
+          id?: string
+          progress_seconds?: number
+          skipped_at?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          content_id?: string
+          created_at?: string
+          id?: string
+          progress_seconds?: number
+          skipped_at?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_content_progress_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_contents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workout_sessions: {
         Row: {
