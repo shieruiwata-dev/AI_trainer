@@ -464,6 +464,110 @@ export type Database = {
           },
         ]
       }
+      meal_log_items: {
+        Row: {
+          amount: number | null
+          calories_kcal: number
+          carbs_g: number
+          created_at: string
+          fat_g: number
+          food_name: string
+          id: string
+          meal_log_id: string
+          metadata: Json
+          protein_g: number
+          unit: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          calories_kcal?: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          food_name: string
+          id?: string
+          meal_log_id: string
+          metadata?: Json
+          protein_g?: number
+          unit?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          calories_kcal?: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          food_name?: string
+          id?: string
+          meal_log_id?: string
+          metadata?: Json
+          protein_g?: number
+          unit?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_log_items_meal_log_id_fkey"
+            columns: ["meal_log_id"]
+            isOneToOne: false
+            referencedRelation: "meal_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meal_logs: {
+        Row: {
+          analysis_result: Json
+          calories_kcal: number
+          carbs_g: number
+          confidence: number | null
+          created_at: string
+          fat_g: number
+          id: string
+          input_type: string
+          logged_at: string
+          meal_type: string
+          protein_g: number
+          raw_text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_result?: Json
+          calories_kcal?: number
+          carbs_g?: number
+          confidence?: number | null
+          created_at?: string
+          fat_g?: number
+          id?: string
+          input_type?: string
+          logged_at?: string
+          meal_type?: string
+          protein_g?: number
+          raw_text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_result?: Json
+          calories_kcal?: number
+          carbs_g?: number
+          confidence?: number | null
+          created_at?: string
+          fat_g?: number
+          id?: string
+          input_type?: string
+          logged_at?: string
+          meal_type?: string
+          protein_g?: number
+          raw_text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       meals: {
         Row: {
           calories: number
