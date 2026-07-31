@@ -4,7 +4,13 @@
  */
 
 export interface OnboardingState {
-  purpose_type?: "cut" | "bulk" | "maintain";
+  purpose_type?:
+    | "cut"
+    | "bulk"
+    | "maintain"
+    | "strength"
+    | "health"
+    | "undecided";
   current_weight_kg?: number;
   height_cm?: number;
   age?: number;
