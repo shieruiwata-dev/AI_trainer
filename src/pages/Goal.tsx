@@ -309,7 +309,7 @@ function GoalWeightChart({ data, plan }: { data: AppData; plan: GoalPlan }) {
       string,
       { date: string; actual?: number; goal?: number }
     >();
-    for (const w of data.weights) {
+    for (const w of plan.weights) {
       points.set(w.date, { date: w.date, actual: w.weightKg });
     }
     // 目標ペース線(週ごとの点=小さなゴール)
@@ -328,7 +328,7 @@ function GoalWeightChart({ data, plan }: { data: AppData; plan: GoalPlan }) {
     return [...points.values()]
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((p) => ({ ...p, day: daysBetween(plan.startDate, p.date) }));
-  }, [data.weights, plan]);
+  }, [plan.weights, plan]);
 
   const dayLabelOf = (day: number) => labelMD(addDays(plan.startDate, day));
 
