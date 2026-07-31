@@ -166,9 +166,9 @@ export default function App() {
               <Route
                 path="/goal"
                 element={
-                  <RequireAuth>
+                  <Protected>
                     <Goal />
-                  </RequireAuth>
+                  </Protected>
                 }
               />
               <Route
