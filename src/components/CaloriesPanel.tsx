@@ -100,7 +100,7 @@ export function CaloriesPanel({
   );
 }
 
-/** 横棒ゲージ(PFC 1項目分): ラベル+達成度チップ / 実績・目標 / バー */
+/** 横棒ゲージ(PFC 1項目分): ラベル / 摂取・目標 / 残り / バー */
 function MacroBar({
   label,
   value,
@@ -115,52 +115,26 @@ function MacroBar({
   const ratio = hasTarget ? Math.min(1, value / target!) : 0;
   const remaining = hasTarget ? Math.max(target! - value, 0) : 0;
 
-  // 未達=残り / 達成 / 超過=目標より+X
-  const status = (() => {
-    if (!hasTarget)
-      return { cls: "bg-muted text-muted-foreground", text: "目標未設定", check: false };
-    if (value < target!)
-      return {
-        cls: "bg-muted text-muted-foreground",
-        text: `残り ${fmt(remaining)}g`,
-        check: false,
-      };
-    if (value === target!)
-      return {
-        cls: "bg-[#34c759]/15 text-[#248a3d]",
-        text: "達成",
-        check: true,
-      };
-    return {
-      cls: "bg-destructive/10 text-destructive",
-      text: `目標より +${fmt(value - target!)}g`,
-      check: false,
-    };
-  })();
-
   return (
     <div>
-      <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-[13px] font-semibold">
-          {label}
-          <span
-            className={cn(
-              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium [font-variant-numeric:tabular-nums]",
-              status.cls
-            )}
-          >
-            {status.check && <Check className="h-3 w-3" strokeWidth={2.5} />}
-            {status.text}
-          </span>
-        </p>
-        <p className="shrink-0 text-[13px] text-muted-foreground [font-variant-numeric:tabular-nums]">
-          <span className="text-[15px] font-bold text-primary">
-            {fmt(value)}
-          </span>
-          {hasTarget ? ` / ${fmt(target!)}g` : " g"}
-        </p>
-      </div>
-      <div className="mt-1 h-[6px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
+      <p className="text-[13px] font-semibold">{label}</p>
+      <p className="mt-0.5 text-[15px] font-bold leading-none [font-variant-numeric:tabular-nums]">
+        <span className="text-primary">{fmt(value)}</span>
+        <span className="mx-1 text-muted-foreground">/</span>
+        <span className="text-muted-foreground">
+          {hasTarget ? `${fmt(target!)} g` : "-- g"}
+        </span>
+      </p>
+      <p className="mt-1 text-[12px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+        {!hasTarget
+          ? "目標未設定"
+          : value < target!
+            ? `残り ${fmt(remaining)} g`
+            : value === target!
+              ? "達成"
+              : `目標より +${fmt(value - target!)} g`}
+      </p>
+      <div className="mt-1.5 h-[6px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
         {hasTarget && (
           <div
             className="h-full rounded-full bg-primary transition-[width] duration-500"
