@@ -37,6 +37,9 @@ function labelMD(dateStr: string): string {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+/** 確認済みの現在体重から大きく外れた記録は異常値として扱う(kg) */
+const OUTLIER_THRESHOLD_KG = 8;
+
 /**
  * 目標ペースの計算。開始点(最初の体重記録 or プロフィールの開始体重)から
  * 目標日に向けて直線で減らし(増やし)、週ごとの小さなゴールを置く。
@@ -46,10 +49,19 @@ function useGoalPlan(data: AppData) {
   const { weights, profile } = data;
   return useMemo(() => {
     const today = todayStr();
-    const startDate = weights[0]?.date ?? today;
-    const startWeight = weights[0]?.weightKg ?? profile.startWeightKg;
     const target = profile.targetWeightKg;
-    if (startWeight == null || target == null) return null;
+    // ユーザーが確認・確定した現在体重(profiles.current_weight_kg)を基準にする
+    const confirmedWeight = profile.startWeightKg ?? data.latestWeightKg;
+    if (confirmedWeight == null || target == null) return null;
+
+    // 確認済み体重から大きく外れた記録(誤入力・OCRミス等)は採用しない
+    const usableWeights = weights.filter(
+      (w) => Math.abs(w.weightKg - confirmedWeight) <= OUTLIER_THRESHOLD_KG
+    );
+    const excludedCount = weights.length - usableWeights.length;
+
+    const startDate = usableWeights[0]?.date ?? today;
+    const startWeight = usableWeights[0]?.weightKg ?? confirmedWeight;
 
     // 期日はユーザーが承認した目標にのみ存在する。無い場合は推測しない
     const endDate = profile.targetDate;
@@ -64,7 +76,15 @@ function useGoalPlan(data: AppData) {
     const milestones: string[] = [];
     for (let d = 7; d < totalDays; d += 7) milestones.push(addDays(startDate, d));
 
-    const latest = data.latestWeightKg ?? startWeight;
+    // 現在体重は「採用された最新の記録」。無ければ確認済み体重
+    const current =
+      usableWeights.length > 0
+        ? usableWeights[usableWeights.length - 1].weightKg
+        : confirmedWeight;
+    // 増量なら 目標 - 現在、減量なら 現在 - 目標(方向つき。行き過ぎたら0)
+    const isCut = target <= startWeight;
+    const remaining = isCut ? current - target : target - current;
+
     return {
       today,
       startDate,
@@ -75,11 +95,15 @@ function useGoalPlan(data: AppData) {
       targetOn,
       milestones: new Set(milestones),
       daysLeft: Math.max(0, daysBetween(today, endDate)),
-      remainingKg: round1(Math.abs(latest - target)),
-      isCut: target <= startWeight,
+      currentWeight: current,
+      remainingKg: round1(Math.max(0, remaining)),
+      isCut,
+      weights: usableWeights,
+      excludedCount,
     };
   }, [weights, profile, data.latestWeightKg]);
 }
+
 
 /** 目標ページ: 残り日数・残り体重 / 日ごとの目標カレンダー / 体重推移グラフ */
 export default function Goal() {
