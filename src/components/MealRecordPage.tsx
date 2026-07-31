@@ -114,7 +114,11 @@ export function MealRecordPage({
 
         {/* ===== 体重推移グラフ ===== */}
         <WeightChart data={data} />
+
+        {/* TODO: テスト用の一時ボタン(検証後に削除) */}
+        <TestSaveMealButton onSaved={data.reload} />
       </div>
+
 
       {/* ===== 本日の献立を聞く ===== */}
       <div className="px-4 pb-[max(calc(env(safe-area-inset-bottom,0px)+0.75rem),1rem)] pt-1">
