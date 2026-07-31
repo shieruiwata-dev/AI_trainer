@@ -561,13 +561,21 @@ export type Database = {
           current_weight_kg: number | null
           diet_strictness: string | null
           display_name: string | null
+          experience_assessed_at: string | null
+          food_logging_experience: string | null
           height_cm: number | null
           injury_notes: string | null
+          nutrition_level: string
           onboarding_completed: boolean
+          onboarding_completed_at: string | null
+          onboarding_step: string
+          pfc_knowledge: string | null
           sex_for_calculation: string | null
           trainer_style: string | null
           training_experience: string | null
-          training_level: string | null
+          training_experience_months: number | null
+          training_level: string
+          training_load_management: string | null
           updated_at: string
           user_id: string
           weekly_training_days: number | null
@@ -581,13 +589,21 @@ export type Database = {
           current_weight_kg?: number | null
           diet_strictness?: string | null
           display_name?: string | null
+          experience_assessed_at?: string | null
+          food_logging_experience?: string | null
           height_cm?: number | null
           injury_notes?: string | null
+          nutrition_level?: string
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_step?: string
+          pfc_knowledge?: string | null
           sex_for_calculation?: string | null
           trainer_style?: string | null
           training_experience?: string | null
-          training_level?: string | null
+          training_experience_months?: number | null
+          training_level?: string
+          training_load_management?: string | null
           updated_at?: string
           user_id: string
           weekly_training_days?: number | null
@@ -601,13 +617,21 @@ export type Database = {
           current_weight_kg?: number | null
           diet_strictness?: string | null
           display_name?: string | null
+          experience_assessed_at?: string | null
+          food_logging_experience?: string | null
           height_cm?: number | null
           injury_notes?: string | null
+          nutrition_level?: string
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_step?: string
+          pfc_knowledge?: string | null
           sex_for_calculation?: string | null
           trainer_style?: string | null
           training_experience?: string | null
-          training_level?: string | null
+          training_experience_months?: number | null
+          training_level?: string
+          training_load_management?: string | null
           updated_at?: string
           user_id?: string
           weekly_training_days?: number | null
