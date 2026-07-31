@@ -1,3 +1,4 @@
+import type React from "react";
 import { AlertTriangle, Check, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -85,6 +86,7 @@ export function GoalProposalCard({
   decision,
   busy = false,
   startDisabled = false,
+  footerSlot,
   onStart,
   onAdjust,
 }: {
@@ -92,6 +94,7 @@ export function GoalProposalCard({
   decision?: "confirm" | "reject";
   busy?: boolean;
   startDisabled?: boolean;
+  footerSlot?: React.ReactNode;
   onStart: () => void;
   onAdjust: (message: string) => void;
 }) {
@@ -211,8 +214,10 @@ export function GoalProposalCard({
         )}
       </div>
 
+      {footerSlot && <div className="px-4">{footerSlot}</div>}
+
       {showButtons && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 pt-3">
           <button
             type="button"
             disabled={busy || startDisabled}
