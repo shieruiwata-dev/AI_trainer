@@ -13,6 +13,7 @@ import Log from "@/pages/Log";
 import Goal from "@/pages/Goal";
 import Settings from "@/pages/Settings";
 import Auth from "@/pages/Auth";
+import OnboardingExperience from "@/pages/OnboardingExperience";
 import NotFound from "@/pages/NotFound";
 import { supabase } from "@/integrations/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabaseConfig";
@@ -44,6 +45,45 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** onboarding_completed が false のユーザーを経験ヒアリングへ誘導する */
+function RequireOnboarded({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<"loading" | "done" | "todo">(
+    isSupabaseConfigured ? "loading" : "done"
+  );
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    supabase.auth.getUser().then(async ({ data }) => {
+      const userId = data.user?.id;
+      if (!userId) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!cancelled) setState(profile?.onboarding_completed ? "done" : "todo");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (state === "loading") return null;
+  if (state === "todo") return <Navigate to="/onboarding/experience" replace />;
+  return <>{children}</>;
+}
+
+/** 認証済み + オンボーディング完了が必要な画面 */
+function Protected({ children }: { children: React.ReactNode }) {
+  return (
+    <RequireAuth>
+      <RequireOnboarded>{children}</RequireOnboarded>
+    </RequireAuth>
+  );
+}
+
+
 export default function App() {
   return (
     <Router>
@@ -56,19 +96,27 @@ export default function App() {
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route
-                path="/"
+                path="/onboarding/experience"
                 element={
                   <RequireAuth>
-                    <Chat />
+                    <OnboardingExperience />
                   </RequireAuth>
+                }
+              />
+              <Route
+                path="/"
+                element={
+                  <Protected>
+                    <Chat />
+                  </Protected>
                 }
               />
               <Route
                 path="/log"
                 element={
-                  <RequireAuth>
+                  <Protected>
                     <Log />
-                  </RequireAuth>
+                  </Protected>
                 }
               />
               <Route
@@ -82,11 +130,12 @@ export default function App() {
               <Route
                 path="/settings"
                 element={
-                  <RequireAuth>
+                  <Protected>
                     <Settings />
-                  </RequireAuth>
+                  </Protected>
                 }
               />
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
