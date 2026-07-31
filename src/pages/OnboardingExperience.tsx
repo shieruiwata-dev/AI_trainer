@@ -4,6 +4,11 @@ import { toast } from "sonner";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  GOAL_STEP_INDEX,
+  GOAL_STEP_TOTAL,
+  setOnboardingStep,
+} from "@/lib/onboardingStep";
 
 type StepKey =
   | "training_duration"
@@ -18,46 +23,47 @@ const STEPS: {
 }[] = [
   {
     key: "training_duration",
-    title: "筋トレの経験はどれくらいですか?",
+    title: "筋力トレーニングを継続した期間を教えてください",
     options: [
-      { value: "none", label: "経験なし" },
-      { value: "under_six_months", label: "6ヶ月未満" },
-      { value: "six_months_to_two_years", label: "6ヶ月〜2年" },
+      { value: "none", label: "ほとんど経験がない" },
+      { value: "under_six_months", label: "6か月未満" },
+      { value: "six_months_to_two_years", label: "6か月〜2年" },
       { value: "over_two_years", label: "2年以上" },
     ],
   },
   {
     key: "training_load_management",
-    title: "トレーニングの重量・強度はどう決めていますか?",
+    title: "普段、重量や回数はどのように決めていますか?",
     options: [
-      { value: "unknown", label: "わからない" },
-      { value: "intuitive", label: "感覚で決めている" },
-      { value: "previous_record", label: "前回の記録を参考にする" },
-      { value: "rpe_rir", label: "RPE / RIR で管理している" },
+      { value: "unknown", label: "自分では決められない" },
+      { value: "intuitive", label: "なんとなく決めている" },
+      { value: "previous_record", label: "前回の記録を参考にしている" },
+      { value: "rpe_rir", label: "RPEやRIRを使って調整している" },
     ],
   },
   {
     key: "pfc_knowledge",
-    title: "PFC(タンパク質・脂質・炭水化物)の知識は?",
+    title: "カロリーやPFCについて、どの程度知っていますか?",
     options: [
-      { value: "none", label: "知らない" },
-      { value: "heard", label: "聞いたことがある" },
-      { value: "understands", label: "だいたい理解している" },
-      { value: "can_manage", label: "自分で管理できる" },
+      { value: "none", label: "ほとんど知らない" },
+      { value: "heard", label: "言葉は聞いたことがある" },
+      { value: "understands", label: "意味は理解している" },
+      { value: "can_manage", label: "自分で計算して調整できる" },
     ],
   },
   {
     key: "food_logging_experience",
-    title: "食事記録の経験はどれくらいですか?",
+    title: "食事記録やカロリー管理をした経験はありますか?",
     options: [
-      { value: "none", label: "経験なし" },
-      { value: "few_days", label: "数日だけ" },
-      { value: "under_one_month", label: "1ヶ月未満" },
-      { value: "over_one_month", label: "1ヶ月以上" },
+      { value: "none", label: "ない" },
+      { value: "few_days", label: "数日だけある" },
+      { value: "under_one_month", label: "1か月未満続けたことがある" },
+      { value: "over_one_month", label: "1か月以上続けたことがある" },
     ],
   },
 ];
 
+/** Step4: 経験レベルのヒアリング(4問)。ここでは目標は作らない */
 export default function OnboardingExperience() {
   const navigate = useNavigate();
   const [index, setIndex] = useState(0);
@@ -74,7 +80,9 @@ export default function OnboardingExperience() {
         { body: final }
       );
       if (error || data?.ok !== true) throw error ?? new Error("failed");
-      navigate("/onboarding/purpose", { replace: true });
+      // 経験ヒアリング完了 = 期限・希望ペースへ(オンボーディング完了ではない)
+      await setOnboardingStep("target_period");
+      navigate("/onboarding/timeline", { replace: true });
     } catch {
       toast.error("保存に失敗しました。もう一度お試しください。");
     } finally {
@@ -92,21 +100,25 @@ export default function OnboardingExperience() {
     }
   }
 
+  function back() {
+    if (index > 0) setIndex(index - 1);
+    else navigate("/onboarding/activity");
+  }
+
   return (
     <div className="flex min-h-full flex-col px-6 py-8">
       <div className="mb-8">
         <div className="mb-3 flex items-center gap-3">
-          {index > 0 && (
-            <button
-              type="button"
-              onClick={() => setIndex(index - 1)}
-              className="-ml-1 rounded-full p-1 text-muted-foreground active:scale-95"
-              aria-label="前の質問へ戻る"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={back}
+            className="-ml-1 rounded-full p-1 text-muted-foreground active:scale-95"
+            aria-label="前の質問へ戻る"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
           <span className="text-sm font-semibold text-muted-foreground">
+            STEP {GOAL_STEP_INDEX.experience}/{GOAL_STEP_TOTAL}・質問{" "}
             {index + 1}/{STEPS.length}
           </span>
         </div>
@@ -127,7 +139,7 @@ export default function OnboardingExperience() {
             variant={answers[step.key] === option.value ? "default" : "outline"}
             disabled={busy}
             onClick={() => choose(option.value)}
-            className="h-auto justify-start rounded-xl px-5 py-4 text-base active:scale-95"
+            className="h-auto justify-start rounded-xl px-5 py-4 text-left text-base active:scale-95"
           >
             {option.label}
           </Button>
