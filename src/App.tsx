@@ -96,19 +96,27 @@ export default function App() {
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route
-                path="/"
+                path="/onboarding/experience"
                 element={
                   <RequireAuth>
-                    <Chat />
+                    <OnboardingExperience />
                   </RequireAuth>
+                }
+              />
+              <Route
+                path="/"
+                element={
+                  <Protected>
+                    <Chat />
+                  </Protected>
                 }
               />
               <Route
                 path="/log"
                 element={
-                  <RequireAuth>
+                  <Protected>
                     <Log />
-                  </RequireAuth>
+                  </Protected>
                 }
               />
               <Route
@@ -122,11 +130,12 @@ export default function App() {
               <Route
                 path="/settings"
                 element={
-                  <RequireAuth>
+                  <Protected>
                     <Settings />
-                  </RequireAuth>
+                  </Protected>
                 }
               />
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
