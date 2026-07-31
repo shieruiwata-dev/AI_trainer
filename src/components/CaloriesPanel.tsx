@@ -62,12 +62,24 @@ export function CaloriesPanel({
             strokeWidth={2}
           />
         </Link>
-        <p className="text-[34px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
-          {todayCalories}
-          <span className="ml-1.5 text-[15px] font-normal text-muted-foreground">
-            kcal
-          </span>
-        </p>
+        <div className="text-right">
+          <p className="text-[34px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+            {todayCalories}
+            <span className="ml-1 text-[15px] font-normal text-muted-foreground">
+              {hasTarget ? `/ ${targetCalories} kcal` : "kcal"}
+            </span>
+          </p>
+          <p className="mt-1.5 text-[12px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+            {!hasTarget
+              ? "目標未設定"
+              : targetCalories! - todayCalories > 0
+                ? `残り ${targetCalories! - todayCalories}kcal`
+                : targetCalories! - todayCalories === 0
+                  ? "達成"
+                  : `目標より +${todayCalories - targetCalories!}kcal`}
+          </p>
+        </div>
+
       </div>
 
       {/* PFCゲージ(横棒) */}
@@ -99,27 +111,29 @@ function MacroBar({
   target: number | null;
 }) {
   const fmt = (n: number) => n.toFixed(1);
-  const ratio = target ? Math.min(1, value / target) : 0;
+  const hasTarget = target != null && target > 0;
+  const ratio = hasTarget ? Math.min(1, value / target!) : 0;
+  const remaining = hasTarget ? Math.max(target! - value, 0) : 0;
 
-  // 達成度チップ: 80%未満=不足(グレー) / 80〜115%=範囲内(緑) / それ以上=オーバー(赤)
+  // 未達=残り / 達成 / 超過=目標より+X
   const status = (() => {
-    if (!target) return null;
-    const p = value / target;
-    if (p < 0.8)
+    if (!hasTarget)
+      return { cls: "bg-muted text-muted-foreground", text: "目標未設定", check: false };
+    if (value < target!)
       return {
         cls: "bg-muted text-muted-foreground",
-        text: `-${fmt(target - value)}g`,
+        text: `残り ${fmt(remaining)}g`,
         check: false,
       };
-    if (p <= 1.15)
+    if (value === target!)
       return {
         cls: "bg-[#34c759]/15 text-[#248a3d]",
-        text: "目標範囲内",
+        text: "達成",
         check: true,
       };
     return {
       cls: "bg-destructive/10 text-destructive",
-      text: `+${fmt(value - target)}g`,
+      text: `目標より +${fmt(value - target!)}g`,
       check: false,
     };
   })();
@@ -129,27 +143,25 @@ function MacroBar({
       <div className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-[13px] font-semibold">
           {label}
-          {status && (
-            <span
-              className={cn(
-                "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium [font-variant-numeric:tabular-nums]",
-                status.cls
-              )}
-            >
-              {status.check && <Check className="h-3 w-3" strokeWidth={2.5} />}
-              {status.text}
-            </span>
-          )}
+          <span
+            className={cn(
+              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium [font-variant-numeric:tabular-nums]",
+              status.cls
+            )}
+          >
+            {status.check && <Check className="h-3 w-3" strokeWidth={2.5} />}
+            {status.text}
+          </span>
         </p>
         <p className="shrink-0 text-[13px] text-muted-foreground [font-variant-numeric:tabular-nums]">
           <span className="text-[15px] font-bold text-primary">
             {fmt(value)}
           </span>
-          {target != null ? ` / ${fmt(target)}g` : " g"}
+          {hasTarget ? ` / ${fmt(target!)}g` : " g"}
         </p>
       </div>
       <div className="mt-1 h-[6px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
-        {target != null && (
+        {hasTarget && (
           <div
             className="h-full rounded-full bg-primary transition-[width] duration-500"
             style={{ width: `${ratio * 100}%` }}
@@ -159,3 +171,4 @@ function MacroBar({
     </div>
   );
 }
+
