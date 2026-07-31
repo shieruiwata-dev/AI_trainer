@@ -341,6 +341,20 @@ export default function OnboardingProposal() {
                   proteinG={kpiNum(proposal, "protein_g")}
                   fatG={kpiNum(proposal, "fat_g")}
                   carbsG={kpiNum(proposal, "carbs_g")}
+                  purpose={
+                    activeGoal?.purpose ??
+                    loadOnboardingState().purpose_type ??
+                    null
+                  }
+                  videoAvailable={contents.some(
+                    (c) => c.target_type === "nutrition"
+                  )}
+                  onWatchVideo={() => {
+                    const c = contents.find(
+                      (x) => x.target_type === "nutrition"
+                    );
+                    if (c) setPlaying(c);
+                  }}
                 />
                 <LearningContentCard
                   heading={
