@@ -129,6 +129,14 @@
   (※デモビルドは `isSupabaseConfigured=false` なので素通り)
 - 新規カード: `LearningContentCard` / `MacroExplainerCard` / `WeightConfirmCard` /
   `GoalSwitchDialog` / `VideoPlayerDialog`
+- **Step2(身体情報)は1画面1項目に分割済み(2026-08-03、こちらで改修)**:
+  身長 → 体重 → 年齢 → 性別 のサブ画面を `OnboardingBody` 内の state で切替
+  (ルートは `/onboarding/body` のまま。戻るボタンはサブ画面を遡り、先頭では purpose へ)
+  - **体重はルーラー式**(`components/RulerPicker.tsx`): 定規を横スワイプ、中央線が現在値。
+    kg/lbs切替つき(内部は常にkgで保持)。目盛り通過ごとに触覚フィードバック
+    (`lib/haptics.ts`: Android=navigator.vibrate / iPhone=iOS 17.4+の
+    `<input type="checkbox" switch>` トグルHaptic流用。旧iOSでは無振動で動作)
+  - RulerPickerは汎用(min/max/step/目盛り間隔/px幅を指定)。身長等への転用可
 - 新規 Edge Function: `complete-experience-onboarding` / `save-meal-log`
 
 ### 目標ページ(`src/pages/Goal.tsx`、ルート `/goal`)
