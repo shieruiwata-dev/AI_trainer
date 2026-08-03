@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from "@/lib/supabaseConfig";
 import { todayStr, uid } from "@/lib/utils";
 import {
   DEFAULT_PROFILE,
+  type MealDetail,
   type MealLog,
   type Profile,
   type WeightLog,
@@ -27,6 +28,13 @@ export interface DataStore {
   listMealLogs(): Promise<MealLog[]>;
   addMealLog(log: Omit<MealLog, "id">): Promise<void>;
   deleteMealLog(id: string): Promise<void>;
+
+  /**
+   * 記録ページ(/log)用: 指定した月の食事だけを写真パスつきで返す(時刻昇順)。
+   * 全期間を取る listMealLogs と違い、表示中の月に絞ってサーバー側で範囲指定する
+   * (データが溜まっても重くならないようにするため)。
+   */
+  listMealDetailsForMonth(year: number, month0: number): Promise<MealDetail[]>;
 
   listWorkoutLogs(): Promise<WorkoutLog[]>;
   addWorkoutLog(log: Omit<WorkoutLog, "id">): Promise<void>;
@@ -100,6 +108,26 @@ class LocalStore implements DataStore {
       LS_KEYS.meals,
       lsGet<MealLog[]>(LS_KEYS.meals, []).filter((l) => l.id !== id)
     );
+  }
+
+  async listMealDetailsForMonth(year: number, month0: number): Promise<MealDetail[]> {
+    const prefix = `${year}-${String(month0 + 1).padStart(2, "0")}`;
+    // ローカル保存の食事には時刻・写真が無い
+    return lsGet<MealLog[]>(LS_KEYS.meals, [])
+      .filter((m) => m.date.startsWith(prefix))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((m) => ({
+        id: m.id,
+        date: m.date,
+        time: null,
+        mealType: m.mealType,
+        name: m.name,
+        calories: m.calories,
+        proteinG: m.proteinG ?? null,
+        fatG: m.fatG ?? null,
+        carbsG: m.carbsG ?? null,
+        imagePath: null,
+      }));
   }
 
   async listWorkoutLogs(): Promise<WorkoutLog[]> {
@@ -293,6 +321,40 @@ class SupabaseStore implements DataStore {
   async deleteMealLog(id: string): Promise<void> {
     const { error } = await this.db.from("meals").delete().eq("id", id);
     if (error) throw error;
+  }
+
+  async listMealDetailsForMonth(year: number, month0: number): Promise<MealDetail[]> {
+    // 表示中の月だけをサーバー側で範囲指定して取る(列も使う分だけに絞る)
+    const start = new Date(year, month0, 1);
+    const end = new Date(year, month0 + 1, 1);
+    const { data, error } = await this.db
+      .from("meals")
+      .select(
+        "id, eaten_at, meal_type, raw_text, estimation_note, calories, protein_g, fat_g, carbs_g, image_path"
+      )
+      .gte("eaten_at", start.toISOString())
+      .lt("eaten_at", end.toISOString())
+      .order("eaten_at", { ascending: true });
+    if (error) throw error;
+    return (data ?? []).map((r) => {
+      const at = new Date(r.eaten_at);
+      return {
+        id: r.id,
+        date: toLocalDate(r.eaten_at),
+        time: `${String(at.getHours()).padStart(2, "0")}:${String(
+          at.getMinutes()
+        ).padStart(2, "0")}`,
+        mealType: MEAL_TYPES.includes(r.meal_type as "snack")
+          ? (r.meal_type as MealDetail["mealType"])
+          : "snack",
+        name: r.raw_text ?? r.estimation_note ?? "食事",
+        calories: Number(r.calories) || 0,
+        proteinG: r.protein_g,
+        fatG: r.fat_g,
+        carbsG: r.carbs_g,
+        imagePath: r.image_path ?? null,
+      };
+    });
   }
 
   async listWorkoutLogs(): Promise<WorkoutLog[]> {

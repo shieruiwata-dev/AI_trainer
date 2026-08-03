@@ -11,6 +11,7 @@ export function MiniCalendar({
   onSelect,
   markedDates,
   today,
+  className,
 }: {
   month: { y: number; m: number };
   onMonthChange: (m: { y: number; m: number }) => void;
@@ -18,6 +19,8 @@ export function MiniCalendar({
   onSelect: (date: string) => void;
   markedDates: Map<string, unknown> | Set<string>;
   today: string;
+  /** 幅などの上書き。未指定なら従来どおり 208px 固定(シート内の横並び用) */
+  className?: string;
 }) {
   const firstDay = new Date(month.y, month.m, 1).getDay();
   const daysInMonth = new Date(month.y, month.m + 1, 0).getDate();
@@ -31,7 +34,12 @@ export function MiniCalendar({
   }
 
   return (
-    <div className="w-[208px] shrink-0 rounded-[16px] border bg-card px-2.5 py-2.5">
+    <div
+      className={cn(
+        "shrink-0 rounded-[16px] border bg-card px-2.5 py-2.5",
+        className ?? "w-[208px]"
+      )}
+    >
       {/* 月ヘッダー */}
       <div className="flex items-center justify-between px-1">
         <button

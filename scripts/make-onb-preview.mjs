@@ -44,6 +44,28 @@ const addon = `
 </style>
 <script>
 (function () {
+  // 記録画面のUI確認用に、デモのローカル保存へサンプル食事を入れておく
+  // (既に何か記録されていれば触らない。アプリ本体のコードには含まれない)
+  try {
+    var KEY = "fitcoach.meals";
+    if (!localStorage.getItem(KEY)) {
+      var day = function (off) {
+        var t = new Date();
+        t.setDate(t.getDate() - off);
+        return t.getFullYear() + "-" +
+          String(t.getMonth() + 1).padStart(2, "0") + "-" +
+          String(t.getDate()).padStart(2, "0");
+      };
+      localStorage.setItem(KEY, JSON.stringify([
+        { id: "demo-m1", date: day(0), mealType: "breakfast", name: "ヨーグルトとバナナ、ゆで卵", calories: 320, proteinG: 18, fatG: 9, carbsG: 42 },
+        { id: "demo-m2", date: day(0), mealType: "lunch", name: "鶏むね肉のサラダボウルと玄米おにぎり", calories: 540, proteinG: 42, fatG: 12, carbsG: 63 },
+        { id: "demo-m3", date: day(0), mealType: "dinner", name: "サバの塩焼き定食", calories: 650, proteinG: 34, fatG: 28, carbsG: 62 },
+        { id: "demo-m4", date: day(2), mealType: "lunch", name: "牛丼(並)", calories: 635, proteinG: 20, fatG: 20, carbsG: 89 }
+      ]));
+    }
+  } catch (e) {}
+})();
+(function () {
   var steps = ${JSON.stringify(STEPS)};
   if (!location.hash) location.hash = steps[0].hash;
   var nav = document.createElement("div");

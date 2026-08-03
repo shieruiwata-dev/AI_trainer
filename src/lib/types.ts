@@ -35,6 +35,22 @@ export interface MealLog {
   carbsG?: number | null;
 }
 
+/** 記録ページ(/log)用の食事詳細。写真パスと時刻つき */
+export interface MealDetail {
+  id: string;
+  date: string;
+  /** HH:mm(ローカル時刻)。時刻情報が無い記録では null */
+  time: string | null;
+  mealType: MealType;
+  name: string;
+  calories: number;
+  proteinG: number | null;
+  fatG: number | null;
+  carbsG: number | null;
+  /** meal-images バケット内のパス。写真なしの記録では null */
+  imagePath: string | null;
+}
+
 export type WorkoutCategory = "strength" | "cardio" | "stretch";
 
 export interface WorkoutLog {
