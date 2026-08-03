@@ -37,6 +37,9 @@ function labelMD(dateStr: string): string {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+/** 確認済みの現在体重から大きく外れた記録は異常値として扱う(kg) */
+const OUTLIER_THRESHOLD_KG = 8;
+
 /**
  * 目標ペースの計算。開始点(最初の体重記録 or プロフィールの開始体重)から
  * 目標日に向けて直線で減らし(増やし)、週ごとの小さなゴールを置く。
@@ -46,12 +49,23 @@ function useGoalPlan(data: AppData) {
   const { weights, profile } = data;
   return useMemo(() => {
     const today = todayStr();
-    const startDate = weights[0]?.date ?? today;
-    const startWeight = weights[0]?.weightKg ?? profile.startWeightKg;
     const target = profile.targetWeightKg;
-    if (startWeight == null || target == null) return null;
+    // ユーザーが確認・確定した現在体重(profiles.current_weight_kg)を基準にする
+    const confirmedWeight = profile.startWeightKg ?? data.latestWeightKg;
+    if (confirmedWeight == null || target == null) return null;
 
-    const endDate = profile.targetDate ?? addDays(startDate, 90);
+    // 確認済み体重から大きく外れた記録(誤入力・OCRミス等)は採用しない
+    const usableWeights = weights.filter(
+      (w) => Math.abs(w.weightKg - confirmedWeight) <= OUTLIER_THRESHOLD_KG
+    );
+    const excludedCount = weights.length - usableWeights.length;
+
+    const startDate = usableWeights[0]?.date ?? today;
+    const startWeight = usableWeights[0]?.weightKg ?? confirmedWeight;
+
+    // 期日はユーザーが承認した目標にのみ存在する。無い場合は推測しない
+    const endDate = profile.targetDate;
+    if (!endDate) return null;
     const totalDays = Math.max(1, daysBetween(startDate, endDate));
     const targetOn = (date: string) => {
       const d = Math.min(Math.max(daysBetween(startDate, date), 0), totalDays);
@@ -62,7 +76,15 @@ function useGoalPlan(data: AppData) {
     const milestones: string[] = [];
     for (let d = 7; d < totalDays; d += 7) milestones.push(addDays(startDate, d));
 
-    const latest = data.latestWeightKg ?? startWeight;
+    // 現在体重は「採用された最新の記録」。無ければ確認済み体重
+    const current =
+      usableWeights.length > 0
+        ? usableWeights[usableWeights.length - 1].weightKg
+        : confirmedWeight;
+    // 増量なら 目標 - 現在、減量なら 現在 - 目標(方向つき。行き過ぎたら0)
+    const isCut = target <= startWeight;
+    const remaining = isCut ? current - target : target - current;
+
     return {
       today,
       startDate,
@@ -73,11 +95,15 @@ function useGoalPlan(data: AppData) {
       targetOn,
       milestones: new Set(milestones),
       daysLeft: Math.max(0, daysBetween(today, endDate)),
-      remainingKg: round1(Math.abs(latest - target)),
-      isCut: target <= startWeight,
+      currentWeight: current,
+      remainingKg: round1(Math.max(0, remaining)),
+      isCut,
+      weights: usableWeights,
+      excludedCount,
     };
   }, [weights, profile, data.latestWeightKg]);
 }
+
 
 /** 目標ページ: 残り日数・残り体重 / 日ごとの目標カレンダー / 体重推移グラフ */
 export default function Goal() {
@@ -105,7 +131,7 @@ export default function Goal() {
         <>
           <SummaryCard plan={plan} />
           <DailyTargetCalendar plan={plan} />
-          <GoalWeightChart data={data} plan={plan} />
+          <GoalWeightChart plan={plan} />
         </>
       )}
     </div>
@@ -142,8 +168,18 @@ function SummaryCard({ plan }: { plan: GoalPlan }) {
               kg
             </span>
           </p>
+          <p className="mt-1 text-[11px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+            現在 {plan.currentWeight.toFixed(1)}kg → 目標 {plan.target.toFixed(1)}kg
+          </p>
         </div>
       </div>
+
+      {plan.excludedCount > 0 && (
+        <p className="mt-3 rounded-[10px] bg-secondary px-3 py-2 text-[11px] leading-[1.5] text-muted-foreground">
+          未確定の体重記録 {plan.excludedCount} 件は異常値のため、残り体重とグラフから除外しています。
+        </p>
+      )}
+
 
       {/* 期間の進み具合 */}
       <div className="mt-4">
@@ -267,13 +303,13 @@ function DailyTargetCalendar({ plan }: { plan: GoalPlan }) {
 }
 
 /** 下段: 大きなゴールまでの体重推移。実測(青)+ 目標ペース(点線)+ 小さなゴール(旗の点) */
-function GoalWeightChart({ data, plan }: { data: AppData; plan: GoalPlan }) {
+function GoalWeightChart({ plan }: { plan: GoalPlan }) {
   const chart = useMemo(() => {
     const points = new Map<
       string,
       { date: string; actual?: number; goal?: number }
     >();
-    for (const w of data.weights) {
+    for (const w of plan.weights) {
       points.set(w.date, { date: w.date, actual: w.weightKg });
     }
     // 目標ペース線(週ごとの点=小さなゴール)
@@ -292,7 +328,7 @@ function GoalWeightChart({ data, plan }: { data: AppData; plan: GoalPlan }) {
     return [...points.values()]
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((p) => ({ ...p, day: daysBetween(plan.startDate, p.date) }));
-  }, [data.weights, plan]);
+  }, [plan.weights, plan]);
 
   const dayLabelOf = (day: number) => labelMD(addDays(plan.startDate, day));
 

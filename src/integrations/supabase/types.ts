@@ -464,6 +464,110 @@ export type Database = {
           },
         ]
       }
+      meal_log_items: {
+        Row: {
+          amount: number | null
+          calories_kcal: number
+          carbs_g: number
+          created_at: string
+          fat_g: number
+          food_name: string
+          id: string
+          meal_log_id: string
+          metadata: Json
+          protein_g: number
+          unit: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          calories_kcal?: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          food_name: string
+          id?: string
+          meal_log_id: string
+          metadata?: Json
+          protein_g?: number
+          unit?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          calories_kcal?: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          food_name?: string
+          id?: string
+          meal_log_id?: string
+          metadata?: Json
+          protein_g?: number
+          unit?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_log_items_meal_log_id_fkey"
+            columns: ["meal_log_id"]
+            isOneToOne: false
+            referencedRelation: "meal_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meal_logs: {
+        Row: {
+          analysis_result: Json
+          calories_kcal: number
+          carbs_g: number
+          confidence: number | null
+          created_at: string
+          fat_g: number
+          id: string
+          input_type: string
+          logged_at: string
+          meal_type: string
+          protein_g: number
+          raw_text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_result?: Json
+          calories_kcal?: number
+          carbs_g?: number
+          confidence?: number | null
+          created_at?: string
+          fat_g?: number
+          id?: string
+          input_type?: string
+          logged_at?: string
+          meal_type?: string
+          protein_g?: number
+          raw_text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_result?: Json
+          calories_kcal?: number
+          carbs_g?: number
+          confidence?: number | null
+          created_at?: string
+          fat_g?: number
+          id?: string
+          input_type?: string
+          logged_at?: string
+          meal_type?: string
+          protein_g?: number
+          raw_text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       meals: {
         Row: {
           calories: number
@@ -518,6 +622,60 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_contents: {
+        Row: {
+          content_key: string
+          content_type: string
+          created_at: string
+          description: string | null
+          duration_seconds: number | null
+          id: string
+          is_skippable: boolean
+          sort_order: number
+          status: string
+          target_level: string
+          target_type: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          content_key: string
+          content_type?: string
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_skippable?: boolean
+          sort_order?: number
+          status?: string
+          target_level: string
+          target_type: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          content_key?: string
+          content_type?: string
+          created_at?: string
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_skippable?: boolean
+          sort_order?: number
+          status?: string
+          target_level?: string
+          target_type?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       pending_actions: {
         Row: {
           action_type: string
@@ -561,13 +719,21 @@ export type Database = {
           current_weight_kg: number | null
           diet_strictness: string | null
           display_name: string | null
+          experience_assessed_at: string | null
+          food_logging_experience: string | null
           height_cm: number | null
           injury_notes: string | null
+          nutrition_level: string
           onboarding_completed: boolean
+          onboarding_completed_at: string | null
+          onboarding_step: string
+          pfc_knowledge: string | null
           sex_for_calculation: string | null
           trainer_style: string | null
           training_experience: string | null
-          training_level: string | null
+          training_experience_months: number | null
+          training_level: string
+          training_load_management: string | null
           updated_at: string
           user_id: string
           weekly_training_days: number | null
@@ -581,13 +747,21 @@ export type Database = {
           current_weight_kg?: number | null
           diet_strictness?: string | null
           display_name?: string | null
+          experience_assessed_at?: string | null
+          food_logging_experience?: string | null
           height_cm?: number | null
           injury_notes?: string | null
+          nutrition_level?: string
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_step?: string
+          pfc_knowledge?: string | null
           sex_for_calculation?: string | null
           trainer_style?: string | null
           training_experience?: string | null
-          training_level?: string | null
+          training_experience_months?: number | null
+          training_level?: string
+          training_load_management?: string | null
           updated_at?: string
           user_id: string
           weekly_training_days?: number | null
@@ -601,13 +775,21 @@ export type Database = {
           current_weight_kg?: number | null
           diet_strictness?: string | null
           display_name?: string | null
+          experience_assessed_at?: string | null
+          food_logging_experience?: string | null
           height_cm?: number | null
           injury_notes?: string | null
+          nutrition_level?: string
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_step?: string
+          pfc_knowledge?: string | null
           sex_for_calculation?: string | null
           trainer_style?: string | null
           training_experience?: string | null
-          training_level?: string | null
+          training_experience_months?: number | null
+          training_level?: string
+          training_load_management?: string | null
           updated_at?: string
           user_id?: string
           weekly_training_days?: number | null
@@ -688,6 +870,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_content_progress: {
+        Row: {
+          completed_at: string | null
+          content_id: string
+          created_at: string
+          id: string
+          progress_seconds: number
+          skipped_at: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          content_id: string
+          created_at?: string
+          id?: string
+          progress_seconds?: number
+          skipped_at?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          content_id?: string
+          created_at?: string
+          id?: string
+          progress_seconds?: number
+          skipped_at?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_content_progress_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "onboarding_contents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workout_sessions: {
         Row: {

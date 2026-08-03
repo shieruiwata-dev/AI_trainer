@@ -1,3 +1,4 @@
+import type React from "react";
 import { AlertTriangle, Check, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -84,12 +85,16 @@ export function GoalProposalCard({
   proposal,
   decision,
   busy = false,
+  startDisabled = false,
+  footerSlot,
   onStart,
   onAdjust,
 }: {
   proposal: P;
   decision?: "confirm" | "reject";
   busy?: boolean;
+  startDisabled?: boolean;
+  footerSlot?: React.ReactNode;
   onStart: () => void;
   onAdjust: (message: string) => void;
 }) {
@@ -209,17 +214,24 @@ export function GoalProposalCard({
         )}
       </div>
 
+      {footerSlot && <div className="px-4">{footerSlot}</div>}
+
       {showButtons && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 pt-3">
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || startDisabled}
             onClick={onStart}
             className="flex h-11 w-full items-center justify-center gap-1.5 rounded-full bg-primary text-[15px] font-medium text-primary-foreground transition-transform active:scale-[0.97] disabled:opacity-50"
           >
             <Check className="h-4 w-4" strokeWidth={2.4} />
             この目標で始める
           </button>
+          {startDisabled && (
+            <p className="mt-2 text-center text-[12px] text-muted-foreground">
+              現在の体重を確定すると開始できます
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
             {["もっと攻めたい", "もう少しゆるくしたい", "期限を変える"].map(
               (label) => (

@@ -4,7 +4,13 @@
  */
 
 export interface OnboardingState {
-  purpose_type?: "cut" | "bulk" | "maintain";
+  purpose_type?:
+    | "cut"
+    | "bulk"
+    | "maintain"
+    | "strength"
+    | "health"
+    | "undecided";
   current_weight_kg?: number;
   height_cm?: number;
   age?: number;
@@ -13,6 +19,7 @@ export interface OnboardingState {
   target_date?: string;
   duration_months?: number;
   available_training_days?: number;
+  activity_level?: string;
 }
 
 const STORAGE_KEY = "fitcoach.onboardingState.v1";
@@ -27,6 +34,7 @@ const ONBOARDING_KEYS = [
   "target_date",
   "duration_months",
   "available_training_days",
+  "activity_level",
 ] as const;
 
 const NUMERIC_KEYS = new Set([
@@ -84,6 +92,9 @@ function normalizeNumber(value: unknown): number | null {
 function normalizePurpose(value: unknown): OnboardingState["purpose_type"] | null {
   const raw = String(value ?? "").trim().toLowerCase();
   if (!raw) return null;
+  if (["strength", "筋力"].includes(raw)) return "strength";
+  if (["health", "healthy", "健康"].includes(raw)) return "health";
+  if (["undecided", "unknown", "未定"].includes(raw)) return "undecided";
   if (["cut", "diet", "lose", "loss", "fat_loss", "減量", "ダイエット"].includes(raw)) return "cut";
   if (["bulk", "gain", "muscle_gain", "増量", "バルク", "筋肥大"].includes(raw)) return "bulk";
   if (["maintain", "maintenance", "keep", "維持", "キープ"].includes(raw)) return "maintain";
@@ -207,6 +218,7 @@ const EMPTY_SHAPE: Record<keyof OnboardingState, true> = {
   target_date: true,
   duration_months: true,
   available_training_days: true,
+  activity_level: true,
 };
 
 /**

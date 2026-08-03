@@ -117,13 +117,29 @@
 - **既知の重要修正**: sendMessageはスレッド更新に必ず `setThread(prev=>...)` を使う(スナップショット上書きで
   直前の更新が消えるバグを修正済み。今後も踏襲すること)
 
+### オンボーディング(柴崎さん実装・2026-08-03マージ)
+
+- **専用ページ方式の6ステップ**(チャット内の質問形式とは別建て)。
+  `/onboarding/purpose` → `body` → `activity` → `experience` → `timeline` → `proposal`。
+  定義は `lib/onboardingStep.ts`(`GOAL_STEPS` / `GOAL_STEP_ROUTES` / `GOAL_STEP_INDEX`)、
+  共通の枠は `components/OnboardingShell.tsx`
+- `App.tsx` に **`RequireOnboarded`** を追加。`profiles.onboarding_completed` と
+  `onboarding_step` を見て未完了なら該当ステップへリダイレクトする。
+  `Protected = RequireAuth + RequireOnboarded` で `/` `/log` `/goal` `/settings` を包む
+  (※デモビルドは `isSupabaseConfigured=false` なので素通り)
+- 新規カード: `LearningContentCard` / `MacroExplainerCard` / `WeightConfirmCard` /
+  `GoalSwitchDialog` / `VideoPlayerDialog`
+- 新規 Edge Function: `complete-experience-onboarding` / `save-meal-log`
+
 ### 目標ページ(`src/pages/Goal.tsx`、ルート `/goal`)
 
 - PFCカードの「目標 ○○ kcal >」チップから開く。**以前は `/settings` へ飛んでいたのを変更**
   (2026-07-30。設定とは別に目標だけを見られるようにするため)
 - 設定画面へはチャットのヘッダー右上の歯車から入る(`/settings` ルート自体は残してある)
-- 構成(上から)。ペース計算は `useGoalPlan`: 開始点=最初の体重記録(無ければプロフィール開始体重)、
-  終了点=goals の target_date(無ければ90日後)へ直線補間。体重推移グラフ(MealRecordPage)と同じ考え方
+- 構成(上から)。ペース計算は `useGoalPlan`。**2026-08-03に柴崎さんが精度を改善**:
+  基準は `profiles.current_weight_kg`(ユーザーが確認・確定した体重)。そこから±8kgを超える
+  記録は異常値(誤入力・OCRミス)として除外し、除外件数を画面に表示する。
+  **期日が無い場合は推測せず未設定扱い**にする(以前は90日後を仮置きしていた)
   1. **サマリーカード**: 期限まで残り日数 / 目標まで残りkg(大きな数字2つ)+ 期間の進捗バー
   2. **ゴールまでのカレンダー**: 今日〜目標日を1日1行で縦リスト(max-h-72でスクロール)。
      右にその日の目標体重。今日=青背景、週ごとの小さなゴール=旗+グレー背景、最終行=ゴール旗

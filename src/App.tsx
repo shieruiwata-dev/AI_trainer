@@ -13,6 +13,13 @@ import Log from "@/pages/Log";
 import Goal from "@/pages/Goal";
 import Settings from "@/pages/Settings";
 import Auth from "@/pages/Auth";
+import OnboardingExperience from "@/pages/OnboardingExperience";
+import OnboardingPurpose from "@/pages/OnboardingPurpose";
+import OnboardingBody from "@/pages/OnboardingBody";
+import OnboardingActivity from "@/pages/OnboardingActivity";
+import OnboardingTimeline from "@/pages/OnboardingTimeline";
+import OnboardingProposal from "@/pages/OnboardingProposal";
+import { GOAL_STEP_ROUTES, isGoalStep, type GoalStep } from "@/lib/onboardingStep";
 import NotFound from "@/pages/NotFound";
 import { supabase } from "@/integrations/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabaseConfig";
@@ -44,6 +51,56 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** 経験ヒアリング / 目標設計が未完了のユーザーを該当ステップへ誘導する */
+function RequireOnboarded({ children }: { children: React.ReactNode }) {
+  const [redirect, setRedirect] = useState<string | null | "loading">(
+    isSupabaseConfigured ? "loading" : null
+  );
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    supabase.auth.getUser().then(async ({ data }) => {
+      const userId = data.user?.id;
+      if (!userId) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_completed, onboarding_step, experience_assessed_at, training_level, nutrition_level")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!profile?.onboarding_completed) {
+        if (isGoalStep(profile?.onboarding_step)) {
+          setRedirect(GOAL_STEP_ROUTES[profile.onboarding_step as GoalStep]);
+        } else {
+          setRedirect("/onboarding/purpose");
+        }
+      } else if (isGoalStep(profile.onboarding_step)) {
+        setRedirect(GOAL_STEP_ROUTES[profile.onboarding_step]);
+      } else {
+        setRedirect(null);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (redirect === "loading") return null;
+  if (redirect) return <Navigate to={redirect} replace />;
+  return <>{children}</>;
+}
+
+/** 認証済み + オンボーディング完了が必要な画面 */
+function Protected({ children }: { children: React.ReactNode }) {
+  return (
+    <RequireAuth>
+      <RequireOnboarded>{children}</RequireOnboarded>
+    </RequireAuth>
+  );
+}
+
+
 export default function App() {
   return (
     <Router>
@@ -56,37 +113,86 @@ export default function App() {
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route
-                path="/"
+                path="/onboarding/experience"
                 element={
                   <RequireAuth>
-                    <Chat />
+                    <OnboardingExperience />
                   </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/purpose"
+                element={
+                  <RequireAuth>
+                    <OnboardingPurpose />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/body"
+                element={
+                  <RequireAuth>
+                    <OnboardingBody />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/activity"
+                element={
+                  <RequireAuth>
+                    <OnboardingActivity />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/timeline"
+                element={
+                  <RequireAuth>
+                    <OnboardingTimeline />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/onboarding/proposal"
+                element={
+                  <RequireAuth>
+                    <OnboardingProposal />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/"
+                element={
+                  <Protected>
+                    <Chat />
+                  </Protected>
                 }
               />
               <Route
                 path="/log"
                 element={
-                  <RequireAuth>
+                  <Protected>
                     <Log />
-                  </RequireAuth>
+                  </Protected>
                 }
               />
               <Route
                 path="/goal"
                 element={
-                  <RequireAuth>
+                  <Protected>
                     <Goal />
-                  </RequireAuth>
+                  </Protected>
                 }
               />
               <Route
                 path="/settings"
                 element={
-                  <RequireAuth>
+                  <Protected>
                     <Settings />
-                  </RequireAuth>
+                  </Protected>
                 }
               />
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
