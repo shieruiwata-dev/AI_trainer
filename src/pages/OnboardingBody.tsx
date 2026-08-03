@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OnboardingShell from "@/components/OnboardingShell";
 import { RulerPicker } from "@/components/RulerPicker";
+import { WheelPicker } from "@/components/WheelPicker";
 import {
   GOAL_STEP_INDEX,
   GOAL_STEP_TOTAL,
@@ -21,7 +22,65 @@ const SUB_STEPS = ["height", "weight", "age", "sex"] as const;
 type SubStep = (typeof SUB_STEPS)[number];
 
 const KG_PER_LBS = 0.453_592_37;
+const CM_PER_INCH = 2.54;
 const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** 単位切替のセグメント(kg/lbs・cm/ft・in で共用) */
+function UnitToggle<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="mx-auto flex w-56 rounded-full bg-muted p-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          aria-pressed={value === o.value}
+          className={cn(
+            "h-10 flex-1 rounded-full text-[15px] font-semibold transition-colors",
+            value === o.value
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground"
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** 身長ホイールの選択肢。cm は1cm刻み、ft/in は1インチ刻み(値は常にcm) */
+function heightItems(unit: "cm" | "ftin") {
+  const items: { value: number; label: string }[] = [];
+  if (unit === "cm") {
+    for (let cm = 120; cm <= 220; cm++) items.push({ value: cm, label: `${cm} cm` });
+  } else {
+    for (let inch = 48; inch <= 87; inch++) {
+      const cm = Math.round(inch * CM_PER_INCH);
+      items.push({
+        value: cm,
+        label: `${Math.floor(inch / 12)}' ${inch % 12}"`,
+      });
+    }
+  }
+  return items;
+}
+
+/** ホイールの選択肢に無い値は最も近いものへ寄せる */
+function nearest(items: { value: number }[], v: number) {
+  return items.reduce(
+    (best, i) => (Math.abs(i.value - v) < Math.abs(best - v) ? i.value : best),
+    items[0].value
+  );
+}
 
 /**
  * Step2: 身体情報。1画面1項目で順に聞く(身長 → 体重 → 年齢 → 性別)。
@@ -33,7 +92,9 @@ export default function OnboardingBody() {
   const saved = loadOnboardingState();
   const [sub, setSub] = useState<SubStep>("height");
 
-  const [height, setHeight] = useState(saved.height_cm?.toString() ?? "");
+  // 身長は内部では常にcmで持ち、表示だけ単位に合わせて変換する
+  const [heightCm, setHeightCm] = useState<number>(saved.height_cm ?? 165);
+  const [heightUnit, setHeightUnit] = useState<"cm" | "ftin">("cm");
   const [age, setAge] = useState(saved.age?.toString() ?? "");
   // 体重は内部では常にkgで持ち、表示だけ単位に合わせて変換する
   const [weightKg, setWeightKg] = useState<number>(
@@ -53,7 +114,7 @@ export default function OnboardingBody() {
   function finish(sex: "male" | "female") {
     saveOnboardingState(
       mergeOnboardingState(loadOnboardingState(), {
-        height_cm: height,
+        height_cm: heightCm,
         current_weight_kg: round1(weightKg),
         age,
         sex,
@@ -76,30 +137,37 @@ export default function OnboardingBody() {
   };
 
   if (sub === "height") {
-    const valid = Number(height) > 0;
+    const items = heightItems(heightUnit);
     return (
       <OnboardingShell
         {...shell}
-        title="身長を教えてください"
-        description="目標づくりの計算に使います。"
+        title="身長は?"
+        description="1日の目標カロリーの計算に使います。"
       >
-        <div className="flex flex-col gap-6">
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-muted-foreground">
-              身長 (cm)
-            </span>
-            <Input
-              inputMode="decimal"
-              autoFocus
-              value={height}
-              onChange={(e) => setHeight(e.target.value)}
-              placeholder="例: 172"
-              className="h-14 text-xl"
-            />
-          </label>
+        <div className="flex flex-col gap-8">
+          {/* 単位切替(ft・in / cm) */}
+          <UnitToggle
+            options={[
+              { value: "ftin", label: "ft・in" },
+              { value: "cm", label: "cm" },
+            ]}
+            value={heightUnit}
+            onChange={(u) => {
+              setHeightUnit(u);
+              setHeightCm(nearest(heightItems(u), heightCm));
+            }}
+          />
+
+          <WheelPicker
+            key={heightUnit}
+            ariaLabel="身長"
+            items={items}
+            value={nearest(items, heightCm)}
+            onChange={setHeightCm}
+          />
+
           <Button
-            disabled={!valid}
-            onClick={() => advance({ height_cm: height }, "weight")}
+            onClick={() => advance({ height_cm: heightCm }, "weight")}
             className="h-12 rounded-xl text-base active:scale-95"
           >
             次へ
@@ -119,25 +187,14 @@ export default function OnboardingBody() {
         description="1日の目標カロリーの計算に使います。"
       >
         <div className="flex flex-col gap-10">
-          {/* 単位切替(kg / lbs) */}
-          <div className="mx-auto flex w-56 rounded-full bg-muted p-1">
-            {(["lbs", "kg"] as const).map((u) => (
-              <button
-                key={u}
-                type="button"
-                onClick={() => setUnit(u)}
-                aria-pressed={unit === u}
-                className={cn(
-                  "h-10 flex-1 rounded-full text-[15px] font-semibold transition-colors",
-                  unit === u
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground"
-                )}
-              >
-                {u}
-              </button>
-            ))}
-          </div>
+          <UnitToggle
+            options={[
+              { value: "lbs", label: "lbs" },
+              { value: "kg", label: "kg" },
+            ]}
+            value={unit}
+            onChange={setUnit}
+          />
 
           {/* 現在値 + 定規 */}
           <div>

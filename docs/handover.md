@@ -132,11 +132,15 @@
 - **Step2(身体情報)は1画面1項目に分割済み(2026-08-03、こちらで改修)**:
   身長 → 体重 → 年齢 → 性別 のサブ画面を `OnboardingBody` 内の state で切替
   (ルートは `/onboarding/body` のまま。戻るボタンはサブ画面を遡り、先頭では purpose へ)
+  - **身長は縦ホイール式**(`components/WheelPicker.tsx`): iOSのピッカー風。中央の行が現在値で
+    上下はフェード、指を離すと最寄り行へ吸着(CSS scroll-snap)。ft・in / cm 切替つき
+    (内部は常にcm保持。ft・inは1インチ刻みでcmへ丸める)
   - **体重はルーラー式**(`components/RulerPicker.tsx`): 定規を横スワイプ、中央線が現在値。
-    kg/lbs切替つき(内部は常にkgで保持)。目盛り通過ごとに触覚フィードバック
+    kg/lbs切替つき(内部は常にkgで保持)
+  - どちらも**目盛り/行を1つ通過するたびに触覚フィードバック**
     (`lib/haptics.ts`: Android=navigator.vibrate / iPhone=iOS 17.4+の
     `<input type="checkbox" switch>` トグルHaptic流用。旧iOSでは無振動で動作)
-  - RulerPickerは汎用(min/max/step/目盛り間隔/px幅を指定)。身長等への転用可
+  - 両ピッカーとも汎用実装なので他項目へ転用可。単位切替は `UnitToggle`(同ファイル内)で共用
 - 新規 Edge Function: `complete-experience-onboarding` / `save-meal-log`
 
 ### 目標ページ(`src/pages/Goal.tsx`、ルート `/goal`)
