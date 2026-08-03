@@ -227,6 +227,15 @@
 
 ### データ層
 - `lib/store.ts`: SupabaseStore実スキーマ対応。デモは LocalStore
+- **`listRecentWorkoutSets` は「降順で500件取ってreverse」にすること**(2026-08-03修正)。
+  昇順+limitだと最古の500件になり、記録が500件を超えた時点で今日のセットが
+  画面から消える(週3回×15セットで約3ヶ月)。返す配列は WorkoutSetsCard が
+  「1セット目・2セット目…」を配列順で並べるため昇順のまま
+- **未対応の重い取得**(カレンダー画面を作るときに一緒に直す予定):
+  `listMealLogs` / `listWeightLogs` / `listWorkoutLogs` が `select("*")` で
+  **全期間・上限なし**。しかも `useAppData.reload()` は食事を記録するたびに
+  4テーブルすべてを取り直す(`Chat.tsx:476` 他)。表示範囲(月/日)で絞り、
+  列を明示し、reloadの粒度を分けるべき
 - `lib/aiChat.ts`: sendAiChat / confirmAction / payloadRows / sanitizeAssistantText 等
 - `integrations/supabase/client.ts`: **自動生成・編集禁止**(柴崎さん管理)
 
@@ -277,6 +286,18 @@
   (`lib/haptics.ts`。Androidは navigator.vibrate で確実)
 - アプリアイコンは G-2 で実装済みだが、ユーザーが「アイコンの話は一旦忘れて」と保留中。
   再開するなら `scripts/build-app-icons.mjs` の座標を編集して再実行
+
+**パフォーマンス改善(2026-08-03に洗い出し。優先順位順)**
+1. ~~`listRecentWorkoutSets` の昇順+limitバグ~~ → **修正済み**
+2. **ギャラリー添付のリサイズ漏れ**: `Chat.tsx:913-929` は選んだファイルを
+   無加工のままアップロードする(8MBチェックのみ)。iPhoneの写真は3〜5MBが
+   そのままStorageへ入る。カメラ経路(`CameraSheet.tsx:113` 長辺1600px+JPEG0.85)と
+   同じ処理を共通化して両方から呼ぶ。これだけで約1/13になる
+3. **サムネイル生成**: カレンダーに写真を並べるなら長辺320px/JPEG0.7(15〜30KB)の
+   小さい版も保存する(`<user_id>/thumb/<uuid>.jpg` 等)。Supabaseの画像変換
+   (`?width=320`)は**有料プラン限定**なので使う場合は柴崎さんに要確認。
+   表示側は `loading="lazy"` + 幅高さ固定も入れる
+4. **取得範囲の絞り込み**(上の「データ層」参照)
 
 **その他**
 - サーバー履歴が1000件を超える場合のページング取得(`.range()`)は未実装

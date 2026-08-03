@@ -333,23 +333,34 @@ class SupabaseStore implements DataStore {
     if (error) throw error;
   }
 
+  /**
+   * 直近のセット記録を返す(日時の昇順)。
+   *
+   * 取得は **新しい方から** 500件にすること。昇順+limitだと「いちばん古い500件」に
+   * なり、記録が500件を超えた時点で今日のセットが画面から消える
+   * (週3回×15セットで約3ヶ月。2026-08-03に修正)。
+   * 一方 WorkoutSetsCard は配列順に「1セット目・2セット目…」を並べるため、
+   * 返す配列は従来どおり昇順に戻す。
+   */
   async listRecentWorkoutSets(): Promise<WorkoutSetRecord[]> {
     const { data, error } = await this.db
       .from("workout_sets")
       .select("*")
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(500);
     if (error) throw error;
-    return (data ?? []).map((r) => ({
-      id: r.id,
-      sessionId: r.session_id,
-      date: toLocalDate(r.completed_at ?? r.created_at),
-      exerciseName: r.exercise_name,
-      setNumber: r.set_number,
-      weightKg: r.actual_weight_kg ?? r.target_weight_kg,
-      reps: r.actual_reps ?? r.target_reps,
-      completedAt: r.completed_at,
-    }));
+    return (data ?? [])
+      .map((r) => ({
+        id: r.id,
+        sessionId: r.session_id,
+        date: toLocalDate(r.completed_at ?? r.created_at),
+        exerciseName: r.exercise_name,
+        setNumber: r.set_number,
+        weightKg: r.actual_weight_kg ?? r.target_weight_kg,
+        reps: r.actual_reps ?? r.target_reps,
+        completedAt: r.completed_at,
+      }))
+      .reverse();
   }
 }
 
