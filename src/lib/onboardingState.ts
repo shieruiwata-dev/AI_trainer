@@ -18,6 +18,8 @@ export interface OnboardingState {
   target_weight_kg?: number;
   target_date?: string;
   duration_months?: number;
+  /** 1週間あたりの体重変化ペース(kg)。Step5のスライダーで決める */
+  pace_kg_per_week?: number;
   available_training_days?: number;
   activity_level?: string;
 }
@@ -33,6 +35,7 @@ const ONBOARDING_KEYS = [
   "target_weight_kg",
   "target_date",
   "duration_months",
+  "pace_kg_per_week",
   "available_training_days",
   "activity_level",
 ] as const;
@@ -43,6 +46,7 @@ const NUMERIC_KEYS = new Set([
   "age",
   "target_weight_kg",
   "duration_months",
+  "pace_kg_per_week",
   "available_training_days",
 ]);
 
@@ -68,6 +72,10 @@ const KEY_ALIASES: Record<string, keyof OnboardingState> = {
   duration_month: "duration_months",
   durationMonths: "duration_months",
   period_months: "duration_months",
+  pace: "pace_kg_per_week",
+  pace_kg_week: "pace_kg_per_week",
+  paceKgPerWeek: "pace_kg_per_week",
+  weekly_pace_kg: "pace_kg_per_week",
   training_days: "available_training_days",
   trainingDays: "available_training_days",
   weekly_training_days: "available_training_days",
@@ -217,6 +225,7 @@ const EMPTY_SHAPE: Record<keyof OnboardingState, true> = {
   target_weight_kg: true,
   target_date: true,
   duration_months: true,
+  pace_kg_per_week: true,
   available_training_days: true,
   activity_level: true,
 };
