@@ -25,6 +25,13 @@ const KG_PER_LBS = 0.453_592_37;
 const CM_PER_INCH = 2.54;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+/** 性別の選択肢。other は「回答しない」を含む受け皿 */
+const SEX_OPTIONS = [
+  { value: "male", label: "男性", symbol: "♂" },
+  { value: "female", label: "女性", symbol: "♀" },
+  { value: "other", label: "その他・回答しない", symbol: "⚲" },
+] as const;
+
 /** 単位切替のセグメント(kg/lbs・cm/ft・in で共用) */
 function UnitToggle<T extends string>({
   options,
@@ -111,7 +118,7 @@ export default function OnboardingBody() {
     }
   }
 
-  function finish(sex: "male" | "female") {
+  function finish(sex: "male" | "female" | "other") {
     saveOnboardingState(
       mergeOnboardingState(loadOnboardingState(), {
         height_cm: heightCm,
@@ -278,18 +285,16 @@ export default function OnboardingBody() {
       description="基礎代謝の計算に使います。"
     >
       <div className="flex flex-col gap-3">
-        {(
-          [
-            ["male", "男性"],
-            ["female", "女性"],
-          ] as const
-        ).map(([v, label]) => (
+        {SEX_OPTIONS.map(({ value, label, symbol }) => (
           <Button
-            key={v}
-            variant={saved.sex === v ? "default" : "outline"}
-            onClick={() => finish(v)}
-            className="h-auto justify-start rounded-xl px-5 py-4 text-base active:scale-95"
+            key={value}
+            variant={saved.sex === value ? "default" : "outline"}
+            onClick={() => finish(value)}
+            className="h-auto justify-start gap-3 rounded-xl px-5 py-4 text-base active:scale-95"
           >
+            <span aria-hidden className="text-[20px] leading-none">
+              {symbol}
+            </span>
             {label}
           </Button>
         ))}

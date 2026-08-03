@@ -144,6 +144,10 @@
     (`lib/haptics.ts`: Android=navigator.vibrate / iPhone=iOS 17.4+の
     `<input type="checkbox" switch>` トグルHaptic流用。旧iOSでは無振動で動作)
   - 両ピッカーとも汎用実装なので他項目へ転用可。単位切替は `UnitToggle`(同ファイル内)で共用
+  - **性別は ♂ 男性 / ♀ 女性 / ⚲ その他・回答しない の3択**。`OnboardingState["sex"]` に
+    `"other"` を追加済み(`normalizeSex` も対応)。
+    ※**バックエンド側で `other` の基礎代謝計算をどう扱うかは未定**(男女の中間で扱う想定)。
+    柴崎さんの Dify / Edge Function 側の対応が必要
 - 新規 Edge Function: `complete-experience-onboarding` / `save-meal-log`
 
 ### 目標ページ(`src/pages/Goal.tsx`、ルート `/goal`)
