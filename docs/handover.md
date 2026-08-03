@@ -12,8 +12,9 @@
 
 - **アプリ**: AIトレーナーとチャットしながらダイエット・筋トレのサポート・記録・モチベーション管理を行うスマホアプリ
 - **正式名称「マイサポ」(My Supporter の略。2026-07-30にユーザーが決定)**。
-  旧称は FitCoach。localStorageキー(`fitcoach.*`)やコード内識別子は互換のため変更しない。
-  UI表示(サイドバーのロゴ・index.html・manifest・単一HTMLのtitle)の改名はユーザーの指示待ち
+  旧称は FitCoach。**UI表示は全て「マイサポ」へ変更済み**(サイドバーのロゴ・index.html の
+  title/OGP/apple-mobile-web-app-title・manifest・単一HTMLのtitle)。
+  localStorageキー(`fitcoach.*`)やコード内識別子は互換のため変更しない
 - **ユーザー(依頼者)**: 岩田さん。日本語でやり取り。スクリーンショット+要望を送ってくる形で進行
 - **分担**: Claude = `src/` のUI全般(主開発者)。柴崎さん = Lovable側でSupabase・Dify・Edge Functions(`supabase/`)・認証まわり
 - **技術**: Vite + React 18 + TypeScript + Tailwind 3(HSLトークン)+ recharts + sonner + lucide-react。一部Radix
@@ -139,7 +140,12 @@
 
 ### PWA(ホーム画面追加で全画面起動)
 - `public/manifest.webmanifest`(display: standalone)、apple-touch-icon.png / icon-192 / icon-512、
-  index.html にiOS用メタタグ。favicon は Action Blue のダンベル(旧緑から変更済み)
+  index.html にiOS用メタタグ
+- **アプリアイコン(2026-08-03決定)**: 片手を高く突き上げ、もう片方の拳を腰で握る応援ポーズの
+  人型シルエット(白)+ Action Blue背景 + 拳の上に気合いの放射線。生成AIではなく手描きSVG。
+  **`scripts/build-app-icons.mjs` が唯一の生成元**。デザイン変更はこのスクリプトの
+  パス座標を直して再実行する(要 `npm i sharp` + `NODE_PATH=<作業dir>/node_modules`)。
+  ホーム画面用PNGは**角丸なしの正方形**で書き出す(OS側が角丸を付けるため)。favicon.svgのみ角丸あり
 - Lovable公開URLをホーム画面に追加するとURLバー無しで起動する
 
 ### データ層

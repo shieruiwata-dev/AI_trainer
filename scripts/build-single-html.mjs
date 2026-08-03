@@ -23,7 +23,7 @@ const js = readFileSync(join(assets, jsFile), "utf8")
 const css = readFileSync(join(assets, cssFile), "utf8");
 
 const html = `<meta charset="utf-8">
-<title>FitCoach — AIトレーナー</title>
+<title>マイサポ — AIトレーナー</title>
 <script>
 // iPhoneのノッチ/ホームインジケーター対応: env(safe-area-inset-*) を有効化
 (function () {

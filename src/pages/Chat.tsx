@@ -562,7 +562,7 @@ export default function Chat() {
       >
         <div className="flex items-center justify-between px-5">
           <p className="text-[24px] font-semibold tracking-[-0.02em]">
-            FitCoach
+            マイサポ
           </p>
         </div>
 
