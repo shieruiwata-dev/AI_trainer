@@ -78,6 +78,35 @@ export default {
           "0%, 60%, 100%": { opacity: "0.28", transform: "translateY(0) scale(0.85)" },
           "30%": { opacity: "1", transform: "translateY(-4px) scale(1)" },
         },
+        // ONB5問目のペースアイコン(選択中だけ動く)
+        // 歩く人: 手足の振り(delayを-0.4sずらすと逆位相になる)+全体の上下ボブ
+        "pace-swing-leg": {
+          "0%, 100%": { transform: "rotate(12deg)" },
+          "50%": { transform: "rotate(-12deg)" },
+        },
+        "pace-swing-arm": {
+          "0%, 100%": { transform: "rotate(10deg)" },
+          "50%": { transform: "rotate(-10deg)" },
+        },
+        "pace-bob": {
+          "0%, 100%": { transform: "translateY(0.5px)" },
+          "50%": { transform: "translateY(-0.6px)" },
+        },
+        // 原付: エンジンの振動でカタカタ揺れる
+        "pace-putter": {
+          "0%, 100%": { transform: "translateY(0.5px) rotate(0.7deg)" },
+          "50%": { transform: "translateY(-0.7px) rotate(-0.7deg)" },
+        },
+        // スーパーカー: 車体の細かい震え+流れるスピード線
+        "pace-dash": {
+          "0%, 100%": { transform: "translateX(0.6px)" },
+          "50%": { transform: "translateX(-0.6px)" },
+        },
+        "pace-speed-line": {
+          "0%": { transform: "translateX(3px)", opacity: "0" },
+          "30%": { opacity: "1" },
+          "100%": { transform: "translateX(-4px)", opacity: "0" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.25s ease-out",
@@ -88,6 +117,12 @@ export default {
         "grow-in": "grow-in 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
         "thinking-dot":
           "thinking-dot 1.3s cubic-bezier(0.32, 0.72, 0, 1) infinite",
+        "pace-swing-leg": "pace-swing-leg 0.8s ease-in-out infinite",
+        "pace-swing-arm": "pace-swing-arm 0.8s ease-in-out infinite",
+        "pace-bob": "pace-bob 0.4s ease-in-out infinite",
+        "pace-putter": "pace-putter 0.32s ease-in-out infinite",
+        "pace-dash": "pace-dash 0.18s ease-in-out infinite",
+        "pace-speed-line": "pace-speed-line 0.7s linear infinite",
       },
       transitionTimingFunction: {
         ios: "cubic-bezier(0.32, 0.72, 0, 1)",

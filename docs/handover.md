@@ -251,7 +251,11 @@
   値は `pace_kg_per_week` として onboardingState に追加済み(duration_months は計算できた
   ときだけ併存)。**Dify側がこの新フィールドを使うかは柴崎さんに未確認**。
   スライダーのトラックは backgroundImage で塗ること(background だと更新時に
-  backgroundClip がリセットされ太いブロックになるバグあり、修正済み)
+  backgroundClip がリセットされ太いブロックになるバグあり、修正済み)。
+  アイコンは**選択中(青)のときだけ**ループアニメーション(歩く人=手足を振る+ボブ、
+  原付=エンジン振動、スーパーカー=車体の震え+スピード線が流れる)。keyframes は
+  tailwind.config.ts の `pace-*`、位相ずらしは inline の animationDelay。
+  手足の回転は transformBox:"view-box" + 関節座標の transformOrigin で行う
 - 触覚フィードバックの実機確認。iPhoneはiOS 17.4+の非公式手法なので**実機で鳴るか未検証**
   (`lib/haptics.ts`。Androidは navigator.vibrate で確実)
 - アプリアイコンは G-2 で実装済みだが、ユーザーが「アイコンの話は一旦忘れて」と保留中。

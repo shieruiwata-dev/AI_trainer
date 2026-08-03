@@ -34,7 +34,12 @@ const ACTIVITY_FACTORS: Record<string, number> = {
   very_high: 1.9,
 };
 
-/* ---- 速さのアイコン(歩く人 / 原付 / スーパーカー) ---- */
+/* ---- 速さのアイコン(歩く人 / 原付 / スーパーカー)。選択中だけ動く ---- */
+
+interface IconProps {
+  className?: string;
+  active?: boolean;
+}
 
 function IconBase({
   children,
@@ -59,24 +64,40 @@ function IconBase({
   );
 }
 
-/** 歩いている人 */
-function WalkerIcon({ className }: { className?: string }) {
+/** 関節(viewBox座標)を回転の中心にするための style */
+function jointStyle(x: number, y: number, delaySec = 0): React.CSSProperties {
+  return {
+    transformOrigin: `${x}px ${y}px`,
+    transformBox: "view-box",
+    animationDelay: `${delaySec}s`,
+  };
+}
+
+/** 歩いている人(選択中: 手足を振って歩く+上下にボブ) */
+function WalkerIcon({ className, active }: IconProps) {
+  // 歩行なので対側の手足を同位相にする(右脚+左腕 / 左脚+右腕)
+  const leg = active ? "motion-safe:animate-pace-swing-leg" : "";
+  const arm = active ? "motion-safe:animate-pace-swing-arm" : "";
   return (
-    <IconBase className={className}>
+    <IconBase
+      className={`${active ? "motion-safe:animate-pace-bob" : ""} ${className ?? ""}`}
+    >
       <circle cx="13.4" cy="4" r="1.9" />
       <path d="M13.1 6.6 L12 13" />
-      <path d="M12.8 8.2 L16 10.8" />
-      <path d="M12.8 8.2 L9.6 10.5" />
-      <path d="M12 13 L14.5 16 L15.3 20.3" />
-      <path d="M12 13 L10 16.5 L7.6 19.6" />
+      <path d="M12.8 8.2 L16 10.8" className={arm} style={jointStyle(12.8, 8.2, -0.4)} />
+      <path d="M12.8 8.2 L9.6 10.5" className={arm} style={jointStyle(12.8, 8.2)} />
+      <path d="M12 13 L14.5 16 L15.3 20.3" className={leg} style={jointStyle(12, 13)} />
+      <path d="M12 13 L10 16.5 L7.6 19.6" className={leg} style={jointStyle(12, 13, -0.4)} />
     </IconBase>
   );
 }
 
-/** 原付に乗っている人 */
-function ScooterIcon({ className }: { className?: string }) {
+/** 原付に乗っている人(選択中: エンジンの振動でカタカタ揺れる) */
+function ScooterIcon({ className, active }: IconProps) {
   return (
-    <IconBase className={className}>
+    <IconBase
+      className={`${active ? "motion-safe:animate-pace-putter" : ""} ${className ?? ""}`}
+    >
       {/* 車体 */}
       <circle cx="4.6" cy="18.6" r="2" />
       <circle cx="19.2" cy="18.6" r="2" />
@@ -94,21 +115,24 @@ function ScooterIcon({ className }: { className?: string }) {
   );
 }
 
-/** スーパーカーに乗っている人 */
-function SupercarIcon({ className }: { className?: string }) {
+/** スーパーカーに乗っている人(選択中: 車体が細かく震え、スピード線が流れる) */
+function SupercarIcon({ className, active }: IconProps) {
+  const line = active ? "motion-safe:animate-pace-speed-line" : "";
   return (
     <IconBase className={className}>
-      {/* スピード線 */}
-      <path d="M1.4 8.3 h3" />
-      <path d="M0.9 10.8 h2.2" />
-      {/* 車体(低いウェッジシェイプ) */}
-      <path d="M3.9 15.8 H3.3 C2.4 15.8 1.9 15.1 2.1 14.3 C2.3 13.5 2.9 13 3.7 12.8 L6.6 12.3 L9.6 10.2 C10.4 9.7 11.3 9.5 12.2 9.6 L14 9.8 C14.7 9.9 15.3 10.2 15.9 10.6 L17.6 12 L20.3 12.6 C21.2 12.8 21.9 13.6 21.8 14.5 C21.7 15.2 21.1 15.8 20.3 15.8 H19.6" />
-      <path d="M8.9 15.8 H15.4" />
-      <circle cx="6.6" cy="15.8" r="1.9" />
-      <circle cx="17.6" cy="15.8" r="1.9" />
-      {/* フロントガラスと乗っている人の頭 */}
-      <path d="M10.6 12.6 L12.8 10.4" />
-      <circle cx="11.3" cy="11.6" r="0.8" strokeWidth="1.3" />
+      {/* スピード線(車体とは別に流す) */}
+      <path d="M1.4 8.3 h3" className={line} />
+      <path d="M0.9 10.8 h2.2" className={line} style={{ animationDelay: "-0.35s" }} />
+      {/* 車体まわり(震えは車体だけに掛ける) */}
+      <g className={active ? "motion-safe:animate-pace-dash" : undefined}>
+        <path d="M3.9 15.8 H3.3 C2.4 15.8 1.9 15.1 2.1 14.3 C2.3 13.5 2.9 13 3.7 12.8 L6.6 12.3 L9.6 10.2 C10.4 9.7 11.3 9.5 12.2 9.6 L14 9.8 C14.7 9.9 15.3 10.2 15.9 10.6 L17.6 12 L20.3 12.6 C21.2 12.8 21.9 13.6 21.8 14.5 C21.7 15.2 21.1 15.8 20.3 15.8 H19.6" />
+        <path d="M8.9 15.8 H15.4" />
+        <circle cx="6.6" cy="15.8" r="1.9" />
+        <circle cx="17.6" cy="15.8" r="1.9" />
+        {/* フロントガラスと乗っている人の頭 */}
+        <path d="M10.6 12.6 L12.8 10.4" />
+        <circle cx="11.3" cy="11.6" r="0.8" strokeWidth="1.3" />
+      </g>
     </IconBase>
   );
 }
@@ -255,7 +279,7 @@ export default function OnboardingTimeline() {
                     active ? "text-primary" : "text-foreground"
                   }`}
                 >
-                  <Icon className="h-10 w-10" />
+                  <Icon className="h-10 w-10" active={active} />
                   <span
                     className={`text-sm ${active ? "font-semibold" : "font-medium"}`}
                   >
