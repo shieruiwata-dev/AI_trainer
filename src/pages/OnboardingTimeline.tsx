@@ -73,21 +73,38 @@ function jointStyle(x: number, y: number, delaySec = 0): React.CSSProperties {
   };
 }
 
-/** 歩いている人(選択中: 手足を振って歩く+上下にボブ) */
+/** 歩いている人(選択中: 前後の脚が入れ替わるまで振ってしっかりクロスさせる) */
 function WalkerIcon({ className, active }: IconProps) {
-  // 歩行なので対側の手足を同位相にする(右脚+左腕 / 左脚+右腕)
-  const leg = active ? "motion-safe:animate-pace-swing-leg" : "";
-  const arm = active ? "motion-safe:animate-pace-swing-arm" : "";
+  // 0%=描画済みポーズ → 50%=前後の手足が入れ替わった位置 → 100%=元に戻る。
+  // 4本とも同じタイミングで振るので、25%と75%の瞬間に脚がクロスする
   return (
     <IconBase
       className={`${active ? "motion-safe:animate-pace-bob" : ""} ${className ?? ""}`}
     >
       <circle cx="13.4" cy="4" r="1.9" />
       <path d="M13.1 6.6 L12 13" />
-      <path d="M12.8 8.2 L16 10.8" className={arm} style={jointStyle(12.8, 8.2, -0.4)} />
-      <path d="M12.8 8.2 L9.6 10.5" className={arm} style={jointStyle(12.8, 8.2)} />
-      <path d="M12 13 L14.5 16 L15.3 20.3" className={leg} style={jointStyle(12, 13)} />
-      <path d="M12 13 L10 16.5 L7.6 19.6" className={leg} style={jointStyle(12, 13, -0.4)} />
+      {/* 腕(肩=12.85,8.0 を軸に前後入れ替え) */}
+      <path
+        d="M12.85 8 L14.3 10.4 L14.9 12.7"
+        className={active ? "motion-safe:animate-pace-arm-a" : ""}
+        style={jointStyle(12.85, 8)}
+      />
+      <path
+        d="M12.85 8 L11.3 10.3 L10.7 12.5"
+        className={active ? "motion-safe:animate-pace-arm-b" : ""}
+        style={jointStyle(12.85, 8)}
+      />
+      {/* 脚(股関節=12,13 を軸に前後入れ替え) */}
+      <path
+        d="M12 13 L14.5 16 L15.3 20.3"
+        className={active ? "motion-safe:animate-pace-leg-a" : ""}
+        style={jointStyle(12, 13)}
+      />
+      <path
+        d="M12 13 L10 16.5 L7.6 19.6"
+        className={active ? "motion-safe:animate-pace-leg-b" : ""}
+        style={jointStyle(12, 13)}
+      />
     </IconBase>
   );
 }

@@ -79,14 +79,24 @@ export default {
           "30%": { opacity: "1", transform: "translateY(-4px) scale(1)" },
         },
         // ONB5問目のペースアイコン(選択中だけ動く)
-        // 歩く人: 手足の振り(delayを-0.4sずらすと逆位相になる)+全体の上下ボブ
-        "pace-swing-leg": {
-          "0%, 100%": { transform: "rotate(12deg)" },
-          "50%": { transform: "rotate(-12deg)" },
+        // 歩く人: 描画済みポーズ(0%)から前後の手足がそっくり入れ替わる位置(50%)まで
+        // 回転させ、脚をしっかりクロスさせる。a=前に出ている肢 / b=後ろの肢
+        // 符号に注意: y軸が下向きなので「前に出ている肢を後ろへ振る」= プラス回転
+        "pace-leg-a": {
+          "0%, 100%": { transform: "rotate(0deg)" },
+          "50%": { transform: "rotate(58deg)" },
         },
-        "pace-swing-arm": {
-          "0%, 100%": { transform: "rotate(10deg)" },
-          "50%": { transform: "rotate(-10deg)" },
+        "pace-leg-b": {
+          "0%, 100%": { transform: "rotate(0deg)" },
+          "50%": { transform: "rotate(-58deg)" },
+        },
+        "pace-arm-a": {
+          "0%, 100%": { transform: "rotate(0deg)" },
+          "50%": { transform: "rotate(50deg)" },
+        },
+        "pace-arm-b": {
+          "0%, 100%": { transform: "rotate(0deg)" },
+          "50%": { transform: "rotate(-50deg)" },
         },
         "pace-bob": {
           "0%, 100%": { transform: "translateY(0.5px)" },
@@ -117,8 +127,10 @@ export default {
         "grow-in": "grow-in 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
         "thinking-dot":
           "thinking-dot 1.3s cubic-bezier(0.32, 0.72, 0, 1) infinite",
-        "pace-swing-leg": "pace-swing-leg 0.8s ease-in-out infinite",
-        "pace-swing-arm": "pace-swing-arm 0.8s ease-in-out infinite",
+        "pace-leg-a": "pace-leg-a 0.8s ease-in-out infinite",
+        "pace-leg-b": "pace-leg-b 0.8s ease-in-out infinite",
+        "pace-arm-a": "pace-arm-a 0.8s ease-in-out infinite",
+        "pace-arm-b": "pace-arm-b 0.8s ease-in-out infinite",
         "pace-bob": "pace-bob 0.4s ease-in-out infinite",
         "pace-putter": "pace-putter 0.32s ease-in-out infinite",
         "pace-dash": "pace-dash 0.18s ease-in-out infinite",
