@@ -43,7 +43,8 @@ import { CaloriesPanel } from "@/components/CaloriesPanel";
 import { WorkoutSetsCard } from "@/components/WorkoutSetsCard";
 import { WorkoutRecordPage } from "@/components/WorkoutRecordPage";
 import { composeImages } from "@/lib/composeImages";
-import { uploadChatImage } from "@/lib/uploadImage";
+import { MAX_IMAGE_BYTES, uploadChatImage } from "@/lib/uploadImage";
+import { resizeImageFile } from "@/lib/resizeImage";
 import {
   fetchServerMessages,
   mergeServerMessages,
@@ -918,14 +919,22 @@ export default function Chat() {
                   toast.error("画像ファイルを選択してください");
                   return;
                 }
-                if (f.size > 8 * 1024 * 1024) {
+                if (f.size > MAX_IMAGE_BYTES) {
                   toast.error("画像は8MB以下にしてください");
                   return;
                 }
-                setAttachments((prev) => [
-                  ...prev,
-                  { id: uid(), file: f, url: URL.createObjectURL(f) },
-                ]);
+                // 原寸のままアップロードしないよう、縮小してから添付する
+                void (async () => {
+                  const resized = await resizeImageFile(f);
+                  setAttachments((prev) => [
+                    ...prev,
+                    {
+                      id: uid(),
+                      file: resized,
+                      url: URL.createObjectURL(resized),
+                    },
+                  ]);
+                })();
               }}
             />
             <IconButton

@@ -289,10 +289,15 @@
 
 **パフォーマンス改善(2026-08-03に洗い出し。優先順位順)**
 1. ~~`listRecentWorkoutSets` の昇順+limitバグ~~ → **修正済み**
-2. **ギャラリー添付のリサイズ漏れ**: `Chat.tsx:913-929` は選んだファイルを
-   無加工のままアップロードする(8MBチェックのみ)。iPhoneの写真は3〜5MBが
-   そのままStorageへ入る。カメラ経路(`CameraSheet.tsx:113` 長辺1600px+JPEG0.85)と
-   同じ処理を共通化して両方から呼ぶ。これだけで約1/13になる
+2. ~~ギャラリー添付のリサイズ漏れ~~ → **修正済み**(`lib/resizeImage.ts`)。
+   ファイル選択の経路は**2箇所**あった(入力欄のクリップ `Chat.tsx` と、
+   カメラシート内のライブラリ選択/iOS標準カメラ `CameraSheet.onFilePicked`)。
+   どちらも `resizeImageFile()` を通してから添付する。カメラ撮影(`capture()`)は
+   元々縮小済みなので変更なし。**長辺1600px・JPEG0.85 はカメラ側と必ず揃えること**
+   (`MAX_IMAGE_DIMENSION` / `IMAGE_QUALITY`)。実測 2.79MB → 433KB(約85%減)。
+   EXIF回転(iPhoneの縦持ち撮影)は `createImageBitmap(file, {imageOrientation:"from-image"})`
+   で反映している。**ここを外すと写真が横倒しになる**ので触るときは要注意。
+   デコード失敗時は元ファイルをそのまま返して送信を止めない設計
 3. **サムネイル生成**: カレンダーに写真を並べるなら長辺320px/JPEG0.7(15〜30KB)の
    小さい版も保存する(`<user_id>/thumb/<uuid>.jpg` 等)。Supabaseの画像変換
    (`?width=320`)は**有料プラン限定**なので使う場合は柴崎さんに要確認。

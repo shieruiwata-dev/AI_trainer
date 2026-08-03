@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, ChevronLeft, Images, SwitchCamera, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { resizeImageFile } from "@/lib/resizeImage";
+import { MAX_IMAGE_BYTES } from "@/lib/uploadImage";
 
 export interface Shot {
   file: File;
@@ -135,7 +137,7 @@ export function CameraSheet({
     );
   }
 
-  function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
@@ -143,11 +145,16 @@ export function CameraSheet({
       toast.error("画像ファイルを選択してください");
       return;
     }
-    if (f.size > 8 * 1024 * 1024) {
+    if (f.size > MAX_IMAGE_BYTES) {
       toast.error("画像は8MB以下にしてください");
       return;
     }
-    setShots((prev) => [...prev, { file: f, url: URL.createObjectURL(f) }]);
+    // 撮影(capture)と同じ長辺・品質に縮めてから取り込む
+    const resized = await resizeImageFile(f);
+    setShots((prev) => [
+      ...prev,
+      { file: resized, url: URL.createObjectURL(resized) },
+    ]);
     setPhase("review");
   }
 
@@ -185,7 +192,7 @@ export function CameraSheet({
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={onFilePicked}
+        onChange={(e) => void onFilePicked(e)}
       />
       <input
         ref={nativeCameraInputRef}
@@ -193,7 +200,7 @@ export function CameraSheet({
         accept="image/*"
         capture="environment"
         className="hidden"
-        onChange={onFilePicked}
+        onChange={(e) => void onFilePicked(e)}
       />
 
       {/* シート本体 */}
