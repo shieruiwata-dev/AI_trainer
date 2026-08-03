@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import OnboardingShell from "@/components/OnboardingShell";
+import GoalPreparingScreen from "@/components/GoalPreparingScreen";
 import { GoalProposalCard } from "@/components/GoalProposalCard";
 import { MacroExplainerCard } from "@/components/MacroExplainerCard";
 import {
@@ -34,6 +34,54 @@ import {
   toOnboardingContext,
 } from "@/lib/onboardingState";
 import { resetStore } from "@/lib/store";
+import { isSupabaseConfigured } from "@/lib/supabaseConfig";
+
+/** デモ(プレビュー)用: ヒアリング内容から擬似的な提案を組み立てる */
+function buildDemoProposal(): Record<string, unknown> {
+  const s = loadOnboardingState();
+  const w = s.current_weight_kg ?? 65;
+  const gaining = s.purpose_type === "bulk";
+  const target =
+    s.target_weight_kg ?? Math.round((w + (gaining ? 3 : -4)) * 10) / 10;
+  const pace = s.pace_kg_per_week ?? 0.4;
+  const h = s.height_cm ?? 165;
+  const age = s.age ?? 30;
+  const bmr = 10 * w + 6.25 * h - 5 * age + (s.sex === "male" ? 5 : -161);
+  const factors: Record<string, number> = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    high: 1.725,
+    very_high: 1.9,
+  };
+  const tdee = bmr * (factors[s.activity_level ?? ""] ?? 1.375);
+  const kcal = Math.max(
+    1000,
+    Math.round((tdee + (gaining ? 1 : -1) * pace * 1100) / 10) * 10
+  );
+  const protein = Math.round(w * 1.6);
+  const fat = Math.round(w * 0.9);
+  const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
+  const weeks = Math.max(1, Math.ceil(Math.abs(target - w) / pace));
+  const targetDate = new Date(Date.now() + weeks * 7 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  return {
+    goal_title: gaining ? "筋肉を増やすプラン" : "体脂肪を落とすプラン",
+    purpose_type: s.purpose_type ?? "cut",
+    difficulty: "normal",
+    target_date: targetDate,
+    target_metrics: { body_weight_kg: target },
+    kpis: {
+      daily_calories_kcal: kcal,
+      protein_g: protein,
+      fat_g: fat,
+      carbs_g: carbs,
+      strength_sessions_per_week: s.available_training_days ?? 3,
+      weigh_ins_per_week: 7,
+    },
+  };
+}
 
 function kpiNum(proposal: Record<string, unknown>, key: string): number | null {
   const kpis = proposal.kpis;
@@ -51,6 +99,8 @@ function kpiNum(proposal: Record<string, unknown>, key: string): number | null {
 export default function OnboardingProposal() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  /** 準備画面が100%まで演出を終えたか(EDF完了とは別に管理) */
+  const [prepDone, setPrepDone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [proposal, setProposal] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState("");
@@ -81,6 +131,7 @@ export default function OnboardingProposal() {
       return;
     }
     setLoading(true);
+    setPrepDone(false);
     try {
       const state = loadOnboardingState();
       const res = await sendAiChat({
@@ -113,6 +164,16 @@ export default function OnboardingProposal() {
   useEffect(() => {
     if (requested.current) return;
     requested.current = true;
+    // デモ(Artifactプレビュー)はEDFを呼べないので、待ち時間を擬似再現して
+    // 準備画面 → サンプル提案 の流れを見せる
+    if (!isSupabaseConfigured) {
+      const t = setTimeout(() => {
+        setProposal(buildDemoProposal());
+        setMessage("プレビュー用のサンプル提案です(実際はAIが作成します)。");
+        setLoading(false);
+      }, 6500);
+      return () => clearTimeout(t);
+    }
     void (async () => {
       const exp = await fetchExperienceProfile();
       setExperience(exp);
@@ -281,6 +342,12 @@ export default function OnboardingProposal() {
 
   async function approve() {
     if (!proposal) return;
+    // デモ(プレビュー)では保存できないため、その旨を伝えてチャットへ戻す
+    if (!isSupabaseConfigured) {
+      toast.success("プレビューはここまでです(実際はこの目標が保存されます)");
+      navigate("/", { replace: true });
+      return;
+    }
     setBusy(true);
     try {
       const payload =
@@ -300,6 +367,16 @@ export default function OnboardingProposal() {
     }
   }
 
+  // 生成待ちは全画面の準備演出(%が育つ)。EDFが終わっても100%の演出が済むまで見せる
+  if (loading || !prepDone) {
+    return (
+      <GoalPreparingScreen
+        done={!loading}
+        onComplete={() => setPrepDone(true)}
+      />
+    );
+  }
+
   return (
     <OnboardingShell
       step={GOAL_STEP_INDEX.goal_proposal}
@@ -308,12 +385,7 @@ export default function OnboardingProposal() {
       description="内容を確認して、納得できたら開始してください。"
       onBack={() => navigate("/onboarding/timeline")}
     >
-      {loading ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          目標を作成しています…
-        </div>
-      ) : proposal ? (
+      {proposal ? (
         <>
           <GoalProposalCard
             proposal={proposal}

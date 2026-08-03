@@ -7,11 +7,12 @@
 // デモビルドは isSupabaseConfigured=false でオンボーディングを素通りするため、
 // そのままではアンケート画面をArtifactで開けない。このスクリプトは単一HTMLの末尾に
 //   ・初期ハッシュを #/onboarding/purpose にする
-//   ・画面下にステップ切替バー(1〜5 / チャット)を出す
+//   ・画面下にステップ切替バー(1〜6 / チャット)を出す
 // だけを後付けする。通常のアプリ版に戻したいときは preview.html をそのまま publish する。
 //
-// 6問目(/onboarding/proposal)はEdge Functionを呼ぶためデモでは表示できず、
-// 4問目(experience)へリダイレクトされる。1〜5のUI確認用と割り切る。
+// 6問目(/onboarding/proposal)はデモでは擬似進行: 準備画面(%が育つ)を約7秒
+// 見せたあと、ヒアリング内容から組み立てたサンプル提案を表示する
+// (OnboardingProposal 側の isSupabaseConfigured 分岐)。
 
 import { readFileSync, writeFileSync } from "node:fs";
 
@@ -23,6 +24,7 @@ const STEPS = [
   { label: "3", hash: "#/onboarding/activity" },
   { label: "4", hash: "#/onboarding/experience" },
   { label: "5", hash: "#/onboarding/timeline" },
+  { label: "6", hash: "#/onboarding/proposal" },
   { label: "チャット", hash: "#/" },
 ];
 
