@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 import { MessageCircle } from "lucide-react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 import {
   Line,
@@ -117,9 +115,6 @@ export function MealRecordPage({
 
         {/* ===== 体重推移グラフ ===== */}
         <WeightChart data={data} />
-
-        {/* TODO: テスト用の一時ボタン(検証後に削除) */}
-        <TestSaveMealButton onSaved={data.reload} />
       </div>
 
 
@@ -134,92 +129,6 @@ export function MealRecordPage({
         </button>
       </div>
     </div>
-  );
-}
-
-/** TODO: 検証用の一時ボタン。テスト完了後にこのコンポーネントと呼び出し箇所を削除する */
-function TestSaveMealButton({ onSaved }: { onSaved: () => Promise<void> }) {
-  const [busy, setBusy] = useState(false);
-
-  async function run() {
-    setBusy(true);
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error("session_error", sessionError);
-        alert("ログイン情報の取得に失敗しました");
-        return;
-      }
-
-      if (!session?.access_token) {
-        alert("ログイン状態が切れています。再ログインしてください。");
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke("save-meal-log", {
-        body: {
-          meal_type: "lunch",
-          raw_text: "白米200gと鶏胸肉150gを食べた",
-          input_type: "text",
-          calories_kcal: 565,
-          protein_g: 43,
-          fat_g: 7,
-          carbs_g: 77,
-          confidence: 0.85,
-          items: [
-            {
-              food_name: "白米",
-              amount: 200,
-              unit: "g",
-              calories_kcal: 312,
-              protein_g: 5,
-              fat_g: 1,
-              carbs_g: 74,
-            },
-            {
-              food_name: "鶏胸肉",
-              amount: 150,
-              unit: "g",
-              calories_kcal: 253,
-              protein_g: 38,
-              fat_g: 6,
-              carbs_g: 3,
-            },
-          ],
-          analysis_result: {
-            source: "manual_test",
-          },
-        },
-      });
-
-      console.log("save-meal-log result", { data, error });
-
-      if (error) {
-        alert(`保存失敗: ${error.message}`);
-        return;
-      }
-
-      alert("食事記録を保存しました");
-      await onSaved();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-
-
-  return (
-    <button
-      onClick={run}
-      disabled={busy}
-      className="w-full rounded-[12px] border border-dashed border-muted-foreground/40 py-2.5 text-[13px] text-muted-foreground transition-transform active:scale-[0.98] disabled:opacity-50"
-    >
-      {busy ? "保存中..." : "テスト食事を保存"}
-    </button>
   );
 }
 
