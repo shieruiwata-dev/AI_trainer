@@ -57,8 +57,13 @@
 「初期ハッシュを `#/onboarding/purpose` にする + 下部にステップ切替バーを出す」
 スクリプトを足した版を公開している(**アプリ本体のコードには一切入れていない**)。
 
-- 生成スクリプト: `scratchpad/make-onb-preview.mjs`(リポジトリ外。下に全文再掲は無いので
-  必要なら作り直す。やることは `preview.html` の末尾に `<style>+<script>` を足すだけ)
+- 生成スクリプト: **`scripts/make-onb-preview.mjs`**(2026-08-03にリポジトリへ入れた。
+  以前は `scratchpad/` に置いていてセッションを跨ぐと消えていた)
+  ```bash
+  node scripts/build-single-html.mjs preview.html
+  node scripts/make-onb-preview.mjs preview.html preview-onb.html   # ← これをpublish
+  ```
+  - `preview.html` の末尾に `<style>+<script>` を足すだけ。アプリ本体には一切入らない
   - `location.hash` が空なら `#/onboarding/purpose` をセット
   - 画面下に固定の丸いバー(`#pv-nav`)を出し、`1〜5` と `チャット` でハッシュを切り替える
 - **通常のアプリ版に戻したいときは** `preview.html` をそのまま Artifact へ publish すればよい
