@@ -25,11 +25,10 @@ const KG_PER_LBS = 0.453_592_37;
 const CM_PER_INCH = 2.54;
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-/** 性別の選択肢。other は「回答しない」を含む受け皿 */
+/** 性別の選択肢。基礎代謝の計算式が男女の2種類しかないため2択にしている */
 const SEX_OPTIONS = [
   { value: "male", label: "男性", symbol: "♂" },
   { value: "female", label: "女性", symbol: "♀" },
-  { value: "other", label: "その他・回答しない", symbol: "⚲" },
 ] as const;
 
 /** 単位切替のセグメント(kg/lbs・cm/ft・in で共用) */
@@ -118,7 +117,7 @@ export default function OnboardingBody() {
     }
   }
 
-  function finish(sex: "male" | "female" | "other") {
+  function finish(sex: "male" | "female") {
     saveOnboardingState(
       mergeOnboardingState(loadOnboardingState(), {
         height_cm: heightCm,

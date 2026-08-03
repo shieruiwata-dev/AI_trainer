@@ -14,8 +14,7 @@ export interface OnboardingState {
   current_weight_kg?: number;
   height_cm?: number;
   age?: number;
-  /** other は「回答しない/その他」。基礎代謝の計算では男女の中間として扱う想定 */
-  sex?: "male" | "female" | "other";
+  sex?: "male" | "female";
   target_weight_kg?: number;
   target_date?: string;
   duration_months?: number;
@@ -110,10 +109,8 @@ function normalizeSex(value: unknown): OnboardingState["sex"] | null {
   if (!raw) return null;
   if (["male", "man", "men", "m", "男性", "男"].includes(raw)) return "male";
   if (["female", "woman", "women", "f", "女性", "女"].includes(raw)) return "female";
-  if (["other", "その他", "回答しない", "無回答"].includes(raw)) return "other";
   if (/(男性|男|male|man|men)/i.test(raw)) return "male";
   if (/(女性|女|female|woman|women)/i.test(raw)) return "female";
-  if (/(その他|回答しない|other)/i.test(raw)) return "other";
   return null;
 }
 
