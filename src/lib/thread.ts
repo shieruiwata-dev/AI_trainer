@@ -72,14 +72,37 @@ function migrateLegacy(): ChatThread {
   return thread;
 }
 
-/** 送信時刻順。同時刻の user / assistant は user(質問)を先にする */
+/** ISO文字列をミリ秒に。壊れた値は NaN を返す(並べ替えでは同順位として扱う) */
+export function timeOf(iso: string): number {
+  return new Date(iso).getTime();
+}
+
+/**
+ * 送信時刻順。同時刻の user / assistant は user(質問)を先にする。
+ *
+ * ※文字列比較ではなく数値で比べること。サーバーの created_at は
+ * `2026-07-29T03:11:57.385034+00:00`(マイクロ秒+オフセット)、端末は
+ * `2026-07-29T03:11:57.385Z` と形式が違い、文字列比較では順序が狂うため。
+ */
 export function sortMessages(list: ChatMessage[]): ChatMessage[] {
   return [...list].sort((a, b) => {
-    const c = a.createdAt.localeCompare(b.createdAt);
-    if (c !== 0) return c;
+    const ta = timeOf(a.createdAt);
+    const tb = timeOf(b.createdAt);
+    if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return ta - tb;
     if (a.role === b.role) return 0;
     return a.role === "user" ? -1 : 1;
   });
+}
+
+/**
+ * 端末で作ったメッセージの createdAt は必ず `new Date().toISOString()` の形
+ * (ミリ秒3桁 + Z)。これに当てはまらないものはサーバー由来と判定できる。
+ * `fromServer` を付ける前に取り込まれた古いスレッドの修復にも使う。
+ */
+const LOCAL_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+export function isServerOrigin(m: ChatMessage): boolean {
+  return m.fromServer === true || !LOCAL_ISO.test(m.createdAt);
 }
 
 function dedupeById(list: ChatMessage[]): ChatMessage[] {

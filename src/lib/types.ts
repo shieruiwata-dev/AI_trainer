@@ -96,6 +96,12 @@ export interface ChatMessage {
   proposal?: Record<string, unknown> | null;
   safety?: { level?: string; note?: string };
 
+  /**
+   * サーバー(ai_messages)から取り込んだ履歴であることの印。
+   * 端末で送受信したメッセージには付かない。重複排除・修復の判定に使う。
+   */
+  fromServer?: boolean;
+
   /** 確認カードの結果: 確定済み / 却下済み */
   decision?: "confirm" | "reject";
   /** 食材の量を修正して再計算したため、このカードは無効 */

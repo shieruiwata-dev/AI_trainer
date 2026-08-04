@@ -48,6 +48,7 @@ import { resizeImageFile } from "@/lib/resizeImage";
 import {
   fetchServerMessages,
   mergeServerMessages,
+  repairThread,
 } from "@/lib/serverConversations";
 
 import { TrainerAvatar } from "@/components/TrainerAvatar";
@@ -93,7 +94,15 @@ const JUMP_DURATION_MS = 380;
 export default function Chat() {
   const data = useAppData();
   const { trainer } = useSelectedTrainer();
-  const [thread, setThread] = useState<ChatThread>(() => loadThread());
+  // 過去のサーバー履歴同期で重複が入り込んだスレッドは、開いた時点で直して保存し直す
+  const [thread, setThread] = useState<ChatThread>(() => {
+    const loaded = loadThread();
+    const repaired = repairThread(loaded.messages);
+    if (repaired === loaded.messages) return loaded;
+    const fixed = { ...loaded, messages: repaired };
+    saveThread(fixed);
+    return fixed;
+  });
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   // 入力欄に添付中の画像(カメラ撮影 / ライブラリ選択)。送信で消費する
@@ -1275,6 +1284,12 @@ function DaySeparator({ label }: { label: string }) {
   );
 }
 
+/**
+ * 写真だけを送ったときの本文。端末は「(画像を送信しました)」、サーバー(ai-chat)は
+ * 「[image]」で保存するため、写真が出ているときはどちらも文字として出さない。
+ */
+const IMAGE_ONLY_TEXT = new Set(["[image]", "(画像を送信しました)"]);
+
 /** 自分の発言: グレーの丸いバブル(右寄せ) */
 function UserMessage({
   content,
@@ -1283,6 +1298,8 @@ function UserMessage({
   content: string;
   imageUrl?: string;
 }) {
+  const text =
+    imageUrl && IMAGE_ONLY_TEXT.has(content.trim()) ? "" : content;
   return (
     <div className="flex animate-fade-in flex-col items-end gap-1.5">
       {imageUrl && (
@@ -1292,9 +1309,9 @@ function UserMessage({
           className="max-h-52 max-w-[70%] rounded-[18px] object-cover"
         />
       )}
-      {content && (
+      {text && (
         <div className="max-w-[80%] whitespace-pre-wrap rounded-[22px] bg-muted px-5 py-2.5 text-[17px] leading-[1.5] text-foreground">
-          {content}
+          {text}
         </div>
       )}
     </div>
