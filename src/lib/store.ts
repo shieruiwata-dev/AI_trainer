@@ -6,6 +6,7 @@ import {
   type MealDetail,
   type MealLog,
   type Profile,
+  type TrainerMemory,
   type WeightLog,
   type WorkoutLog,
   type WorkoutSetRecord,
@@ -42,6 +43,13 @@ export interface DataStore {
 
   /** 直近のセット記録(AIチャット経由で workout_sets に保存されたもの) */
   listRecentWorkoutSets(): Promise<WorkoutSetRecord[]>;
+
+  /**
+   * トレーナーが会話から学んだ、このユーザーについての記憶(ChatGPT/Claudeのメモリー機能と同じ考え方)。
+   * 生成はDify側(会話のたびに新事実を判定)。ここは一覧表示と削除のみ担当する。
+   */
+  listTrainerMemories(): Promise<TrainerMemory[]>;
+  deleteTrainerMemory(id: string): Promise<void>;
 }
 
 // ---------- ローカルストレージ実装 ----------
@@ -150,6 +158,14 @@ class LocalStore implements DataStore {
   async listRecentWorkoutSets(): Promise<WorkoutSetRecord[]> {
     // セット単位の記録はAI(Supabase)経由のみ。ローカルモードでは空
     return [];
+  }
+
+  async listTrainerMemories(): Promise<TrainerMemory[]> {
+    // 記憶はDifyとの会話から生まれるためAI(Supabase)経由のみ。ローカルモードでは空
+    return [];
+  }
+  async deleteTrainerMemory(): Promise<void> {
+    /* ローカルモードには記憶が無いため何もしない */
   }
 }
 
@@ -426,7 +442,40 @@ class SupabaseStore implements DataStore {
       }))
       .reverse();
   }
+
+  async listTrainerMemories(): Promise<TrainerMemory[]> {
+    // trainer_memories はまだ生成済み型(integrations/supabase/types.ts)に無い
+    // (柴崎さん側でテーブル作成待ち。作成後に型を再生成したら as any を外せる)。
+    // テーブルが存在しない間はエラーを投げるので、呼び出し側(Trainer.tsx)で
+    // キャッチして空一覧として扱う
+    const { data, error } = await (this.db as SupabaseClientAny)
+      .from("trainer_memories")
+      .select("id, content, created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return ((data ?? []) as TrainerMemoryRow[]).map((r) => ({
+      id: r.id,
+      content: r.content,
+      createdAt: r.created_at,
+    }));
+  }
+  async deleteTrainerMemory(id: string): Promise<void> {
+    const { error } = await (this.db as SupabaseClientAny)
+      .from("trainer_memories")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+  }
 }
+
+/** trainer_memories が生成済み型に載るまでの一時的な最小定義 */
+interface TrainerMemoryRow {
+  id: string;
+  content: string;
+  created_at: string;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseClientAny = any;
 
 // ---------- ストアの初期化 ----------
 

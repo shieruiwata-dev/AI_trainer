@@ -84,6 +84,17 @@ export interface WorkoutSetRecord {
   completedAt: string | null;
 }
 
+/**
+ * トレーナーが会話を通じて学んだユーザーの特性(ChatGPT/Claudeのメモリー機能と同じ考え方)。
+ * 1件=1つの独立した事実。矛盾する新事実が来たらサーバー側で上書きされるため、
+ * フロントは常に「今の」記憶一覧を表示するだけでよい。
+ */
+export interface TrainerMemory {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
