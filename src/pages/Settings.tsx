@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import BackLink from "@/components/BackLink";
+import { signOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -259,7 +261,73 @@ export default function Settings({
           </p>
         </CardContent>
       </Card>
+
+      <SignOutSection />
     </div>
+  );
+}
+
+/** 設定の最下部。ログアウト(確認あり) */
+function SignOutSection() {
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function run() {
+    setBusy(true);
+    try {
+      await signOut();
+      // 認証画面へ。オーバーレイ内で開いていても確実に切り替わるよう replace で遷移
+      navigate("/auth", { replace: true });
+    } catch {
+      toast.error("ログアウトに失敗しました");
+      setBusy(false);
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="h-12 w-full rounded-full border bg-card text-[16px] font-medium text-[#d70015] transition-transform active:scale-[0.98]"
+      >
+        ログアウト
+      </button>
+
+      {confirming && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
+          <div className="w-full max-w-sm rounded-[18px] border bg-card p-5">
+            <p className="text-[16px] font-semibold tracking-[-0.02em]">
+              ログアウトしますか？
+            </p>
+            <p className="mt-2 text-[13px] leading-[1.6] text-muted-foreground">
+              この端末に保存されたチャットや入力内容は消えます。記録とチャット履歴は
+              サーバーに残っているので、ログインし直せば元に戻ります。
+            </p>
+            <div className="mt-5 space-y-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void run()}
+                className="h-11 w-full rounded-full bg-[#d70015] text-[15px] font-medium text-white transition-transform active:scale-[0.97] disabled:opacity-50"
+              >
+                {busy ? "ログアウトしています…" : "ログアウトする"}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirming(false)}
+                className="h-11 w-full rounded-full border bg-card text-[15px] font-medium transition-transform active:scale-[0.97] disabled:opacity-50"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
