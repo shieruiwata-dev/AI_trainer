@@ -252,6 +252,15 @@
 - **筋トレ**(`WorkoutRecordPage.tsx`): WorkoutSetsCard(**h-[204px]**、影なし)→ カレンダー+選択日メニュー →
   VolumeChart({肩}{胸}{背中}{脚}+データある部位のボタンで切替の折れ線。日次Σ重量×レップ)
 
+### トレーナーページ(サイドバーから開く `/trainer`)= **現在は空**
+
+- サイドバーの4つ目のボタン(`UserRound` アイコン)。2026-08-04にボタンとルートだけ用意した
+- 中身はこれから作る。ToDoの「トレーナー選択画面の追加」がここに入る想定
+  (タイプ・性別・性格の選択。`trainer_settings` テーブルに
+  `trainer_name` / `trainer_style` / `explanation_level` が既にあるので保存先は使える)
+- 現状のトレーナーのアイコン選択は設定画面(`Settings.tsx`)にあり、
+  保存先は localStorage `fitcoach.trainer_icon`。ここへ統合するかは未決
+
 ### 記録ページ(サイドバーから開く `/log`)
 
 - サイドバーの「食事 / 筋トレ / 体重」ボタン(`SidebarBigLink` → `/log?tab=...`)の遷移先。

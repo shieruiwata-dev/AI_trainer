@@ -11,6 +11,7 @@ import { Toaster } from "sonner";
 import Chat from "@/pages/Chat";
 import Log from "@/pages/Log";
 import Goal from "@/pages/Goal";
+import Trainer from "@/pages/Trainer";
 import Settings from "@/pages/Settings";
 import Auth from "@/pages/Auth";
 import OnboardingExperience from "@/pages/OnboardingExperience";
@@ -181,6 +182,14 @@ export default function App() {
                 element={
                   <Protected>
                     <Goal />
+                  </Protected>
+                }
+              />
+              <Route
+                path="/trainer"
+                element={
+                  <Protected>
+                    <Trainer />
                   </Protected>
                 }
               />

@@ -13,6 +13,7 @@ import {
   X,
   ThumbsDown,
   ThumbsUp,
+  UserRound,
   Utensils,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -596,6 +597,11 @@ export default function Chat() {
             to="/log?tab=weight"
             icon={<Scale className="h-7 w-7" strokeWidth={1.8} />}
             label="体重"
+          />
+          <SidebarBigLink
+            to="/trainer"
+            icon={<UserRound className="h-7 w-7" strokeWidth={1.8} />}
+            label="トレーナー"
           />
         </nav>
 
