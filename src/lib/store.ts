@@ -83,7 +83,7 @@ class LocalStore implements DataStore {
   }
   async addWeightLog(log: Omit<WeightLog, "id">): Promise<void> {
     const all = lsGet<WeightLog[]>(LS_KEYS.weights, []);
-    all.push({ ...log, id: uid() });
+    all.push({ createdAt: new Date().toISOString(), ...log, id: uid() });
     lsSet(LS_KEYS.weights, all);
   }
   async deleteWeightLog(id: string): Promise<void> {
@@ -256,7 +256,7 @@ class SupabaseStore implements DataStore {
   async listWeightLogs(): Promise<WeightLog[]> {
     const { data, error } = await this.db
       .from("body_measurements")
-      .select("*")
+      .select("id, measured_at, weight_kg, note, created_at")
       .order("measured_at", { ascending: true });
     if (error) throw error;
     return (data ?? [])
@@ -266,6 +266,8 @@ class SupabaseStore implements DataStore {
         date: toLocalDate(r.measured_at),
         weightKg: Number(r.weight_kg),
         note: r.note ?? undefined,
+        // 同じ日を訂正したときにどちらが新しい申告かを判断するために使う
+        createdAt: r.created_at ?? undefined,
       }));
   }
   async addWeightLog(log: Omit<WeightLog, "id">): Promise<void> {

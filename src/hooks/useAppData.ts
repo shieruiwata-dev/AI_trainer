@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getStore, type DataStore } from "@/lib/store";
+import { latestPerDay } from "@/lib/weight";
 import { todayStr } from "@/lib/utils";
 import {
   DEFAULT_PROFILE,
@@ -68,7 +69,8 @@ export function useAppData(): AppData {
       s.listRecentWorkoutSets(),
     ]);
     setProfile(p);
-    setWeights(w);
+    // 同じ日を訂正すると行が増えるので、1日1件(あとから保存した方)に絞る
+    setWeights(latestPerDay(w));
     setMeals(m);
     setWorkouts(wo);
     setWorkoutSets(sets);

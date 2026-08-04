@@ -20,6 +20,12 @@ export interface WeightLog {
   date: string; // YYYY-MM-DD
   weightKg: number;
   note?: string;
+  /**
+   * この記録が**保存された**日時(測定日時ではない)。
+   * 同じ日の体重を後から訂正すると別の行として増えるため、
+   * どちらが新しい申告かを判断するのに使う(`lib/weight.ts`)。
+   */
+  createdAt?: string;
 }
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";

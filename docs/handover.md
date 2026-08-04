@@ -298,6 +298,16 @@
 
 ### データ層
 - `lib/store.ts`: SupabaseStore実スキーマ対応。デモは LocalStore
+- **体重は1日1件に絞ってから表示する**(`lib/weight.ts` の `latestPerDay`。
+  `useAppData` の reload で適用済みなので、`data.weights` は既に絞られている)
+  - 体重を訂正しても既存行は更新されず**別の行が追加される**
+    (`confirm_pending_action` が insert するため)。しかも訂正版の `measured_at` が
+    元の記録より**前**になることがある(AIが「今日の体重」として現在時刻より前の
+    時刻を入れるため)。測定日時順で最後を採ると誤った古い値が残る
+  - 実例(2026-08-04): 8/3を63kg→67.3kgに訂正したのにグラフが63kgのままだった。
+    63kg は measured_at=05:21・created_at=8/3、67.3kg は measured_at=04:44・created_at=8/4
+  - そこで**保存日時(`created_at`)が新しい方**を採用する。`WeightLog.createdAt` に入れている
+  - **根治は柴崎さん側**: 同じ日の体重は insert ではなく update にすると行が増えない
 - **`listRecentWorkoutSets` は「降順で500件取ってreverse」にすること**(2026-08-03修正)。
   昇順+limitだと最古の500件になり、記録が500件を超えた時点で今日のセットが
   画面から消える(週3回×15セットで約3ヶ月)。返す配列は WorkoutSetsCard が
