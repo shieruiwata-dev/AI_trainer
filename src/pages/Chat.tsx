@@ -907,9 +907,9 @@ export default function Chat() {
         )}
 
         {/* 入力バー(ホームインジケーターを避けるセーフエリア付き) */}
-        <div className="px-3 pb-[max(calc(env(safe-area-inset-bottom,0px)+0.5rem),1rem)] pt-1">
+        <div className="px-3 pb-[max(calc(env(safe-area-inset-bottom,0px)+0.375rem),0.75rem)] pt-0.5">
           <form
-            className="flex items-end gap-1 rounded-[28px] bg-muted px-2 py-1.5"
+            className="flex items-end gap-0.5 rounded-[24px] bg-muted px-1.5 py-1"
             onSubmit={(e) => {
               e.preventDefault();
               void sendMessage(input);
@@ -949,16 +949,16 @@ export default function Chat() {
             <IconButton
               label="画像を添付"
               onClick={() => fileInputRef.current?.click()}
-              className="mb-0.5"
+              className="mb-px"
             >
-              <ImagePlus className="h-6 w-6" strokeWidth={1.8} />
+              <ImagePlus className="h-[22px] w-[22px]" strokeWidth={1.8} />
             </IconButton>
             <IconButton
               label="カメラで食事を撮影"
               onClick={() => setCameraOpen(true)}
-              className="mb-0.5"
+              className="mb-px"
             >
-              <Camera className="h-6 w-6" strokeWidth={1.8} />
+              <Camera className="h-[22px] w-[22px]" strokeWidth={1.8} />
             </IconButton>
             <textarea
               value={input}
@@ -975,16 +975,16 @@ export default function Chat() {
               }}
               placeholder="トレーナーに質問する"
               rows={1}
-              className="max-h-28 min-h-[40px] flex-1 resize-none self-center bg-transparent px-1 py-2 text-[17px] leading-snug text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="max-h-24 min-h-[34px] flex-1 resize-none self-center bg-transparent px-1 py-1.5 text-[16px] leading-snug text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
             <button
               type="button"
               onClick={() => void sendMessage(input)}
               disabled={sending || (!input.trim() && attachments.length === 0)}
               aria-label="送信"
-              className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-40"
+              className="mb-px flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-40"
             >
-              <ArrowUp className="h-5 w-5" strokeWidth={2.2} />
+              <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.2} />
             </button>
           </form>
         </div>
@@ -1189,7 +1189,7 @@ function IconButton({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-transform active:scale-95",
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground transition-transform active:scale-95",
         className
       )}
     >
