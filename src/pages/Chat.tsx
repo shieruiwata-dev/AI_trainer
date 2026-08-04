@@ -45,6 +45,7 @@ import { WorkoutRecordPage } from "@/components/WorkoutRecordPage";
 import { composeImages } from "@/lib/composeImages";
 import { MAX_IMAGE_BYTES, uploadChatImage } from "@/lib/uploadImage";
 import { resizeImageFile } from "@/lib/resizeImage";
+import { useKeyboardOpen } from "@/lib/keyboard";
 import {
   fetchServerMessages,
   mergeServerMessages,
@@ -104,7 +105,10 @@ export default function Chat() {
     return fixed;
   });
   const [input, setInput] = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
   const [sending, setSending] = useState(false);
+  // キーボードが出ている間は入力バー下の安全領域ぶんの余白を詰める
+  const keyboardOpen = useKeyboardOpen(inputFocused);
   // 入力欄に添付中の画像(カメラ撮影 / ライブラリ選択)。送信で消費する
   const [attachments, setAttachments] = useState<
     { id: string; file: File; url: string }[]
@@ -907,7 +911,14 @@ export default function Chat() {
         )}
 
         {/* 入力バー(ホームインジケーターを避けるセーフエリア付き) */}
-        <div className="px-3 pb-[max(calc(env(safe-area-inset-bottom,0px)+0.375rem),0.75rem)] pt-0.5">
+        <div
+          className={cn(
+            "px-3 pt-0.5",
+            keyboardOpen
+              ? "pb-2"
+              : "pb-[max(calc(env(safe-area-inset-bottom,0px)+0.375rem),0.75rem)]"
+          )}
+        >
           <form
             className="flex items-end gap-0.5 rounded-[24px] bg-muted px-1.5 py-1"
             onSubmit={(e) => {
@@ -973,6 +984,8 @@ export default function Chat() {
                   void sendMessage(input);
                 }
               }}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
               placeholder="トレーナーに質問する"
               rows={1}
               className="max-h-24 min-h-[34px] flex-1 resize-none self-center bg-transparent px-1 py-1.5 text-[16px] leading-snug text-foreground placeholder:text-muted-foreground focus:outline-none"
