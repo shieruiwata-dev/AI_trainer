@@ -354,38 +354,6 @@
 
 ## 8. 未完・今後の予定
 
-**トレーナーのパーソナライズ(記憶機能)— フロント実装済み・バックエンド未着手(2026-08-04)**
-
-ChatGPT/Claudeのメモリー機能と同じ考え方で、会話を通じてトレーナーがユーザーの
-特性を学習し、「トレーナー」ページに一覧表示・個別削除できる機能。方針は岩田さんと
-壁打ち済み(矛盾は上書き、抽出は返信と同じDify呼び出し内、見た目の生成は別タスク)。
-
-- **フロントは実装・検証済み**: `src/pages/Trainer.tsx` が `trainer_memories` を
-  一覧表示し、ゴミ箱アイコンで1件ずつ削除(楽観的更新、失敗時ロールバック)。
-  `store.ts` に `listTrainerMemories()` / `deleteTrainerMemory()` を追加
-  (`LocalStore` はローカルモード用に空配列を返すだけ、`SupabaseStore` が実クエリ)。
-  テーブルが未作成でも例外をキャッチして空状態を出すだけなので**今の本番環境でも壊れない**
-  (実際に本番Supabaseに対してE2Eで確認済み、エラーゼロ)。
-  型生成前のテーブルなので `src/lib/store.ts` 内で `SupabaseClientAny`(=`any`)を
-  2箇所だけ限定的に使っている。柴崎さんがテーブル作成→型再生成した後に、
-  この `as SupabaseClientAny` を外して本来の生成型に置き換えられる
-- **柴崎さん側で必要な作業(未着手・要引き継ぎ)**:
-  1. **Supabaseに `trainer_memories` テーブルを作成**
-     (列: `id uuid pk default gen_random_uuid()`, `user_id uuid references auth.users`,
-     `key text`(トピックの一意キー。例: `running_preference`), `content text`(記憶内容の文章),
-     `created_at timestamptz default now()`, `updated_at timestamptz default now()`。
-     `unique(user_id, key)` 制約で同じトピックは1行に保つ。RLSは他テーブルと同様
-     `auth.uid() = user_id` で本人のみ読み書き可)
-  2. **Dify側のプロンプト/出力契約を拡張**: 通常の返信と**同じ呼び出し内**で、
-     構造化フィールド(例 `new_memories: [{key, content}]`)を追加で返すよう指示。
-     「既存の記憶(コンテキストで渡された一覧)と矛盾する新事実が出たら、
-     追加ではなく同じ`key`で上書きする」ことを明示的に指示する
-  3. **`ai-chat` Edge Functionを拡張**: レスポンスの `new_memories` を受け取ったら
-     `trainer_memories` に `(user_id, key)` でupsert。既存の `trainer_style` 等と
-     同じ要領でコンテキストに現在の記憶一覧を含めてDifyに渡す(次回以降の会話で
-     矛盾判定に使えるようにするため)
-  この3点が揃うまでは「トレーナー」ページの一覧は常に空(空状態の文言を表示するだけ)
-
 **次にやる可能性が高いこと(直前の作業の続き)**
 - **`/log` の筋トレ・体重タブを作る**(食事タブは2026-08-03に完成)。
   食事と同じ構成: 全幅カレンダー上部 → 選んだ日の詳細。取得は月単位メソッドを
