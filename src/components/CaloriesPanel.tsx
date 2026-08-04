@@ -37,7 +37,7 @@ export function CaloriesPanel({
   return (
     <div
       className={cn(
-        "rounded-[18px] border bg-card px-3.5 pb-2.5 pt-2.5",
+        "rounded-[18px] border bg-card px-3.5 pb-2 pt-2",
         shadow && "shadow-[0_3px_14px_rgba(0,0,0,0.07)]"
       )}
     >
@@ -63,13 +63,13 @@ export function CaloriesPanel({
           />
         </Link>
         <div className="text-right">
-          <p className="text-[28px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
+          <p className="text-[26px] font-bold leading-none tracking-[-0.02em] [font-variant-numeric:tabular-nums]">
             {formatNumber(todayCalories)}
             <span className="ml-1 text-[13px] font-normal text-muted-foreground">
               / {hasTarget ? formatNumber(targetCalories) : "--"} kcal
             </span>
           </p>
-          <p className="mt-1 text-[11px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+          <p className="mt-0.5 text-[11px] text-muted-foreground [font-variant-numeric:tabular-nums]">
             {!hasTarget
               ? "目標未設定"
               : targetCalories! - todayCalories > 0
@@ -82,7 +82,7 @@ export function CaloriesPanel({
       </div>
 
       {/* PFCゲージ(横棒) */}
-      <div className="mt-2 space-y-1.5 px-1">
+      <div className="mt-1.5 space-y-1 px-1">
         <MacroBar
           label="タンパク質"
           value={proteinG}
@@ -123,7 +123,7 @@ function MacroBar({
           {hasTarget ? `${fmt(target!)} g` : "-- g"}
         </span>
       </p>
-      <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
+      <div className="mt-1 h-[5px] overflow-hidden rounded-full bg-[hsl(240_12%_92%)]">
         {hasTarget && (
           <div
             className="h-full rounded-full bg-primary transition-[width] duration-500"
